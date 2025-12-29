@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BitnestLoop — dApp</title>
+  <style>
+    body { font-family: system-ui, Arial; max-width: 980px; margin: 40px auto; padding: 0 16px; }
+    button { padding: 10px 14px; margin: 6px 6px 6px 0; cursor: pointer; }
+    input { padding: 10px; width: 100%; max-width: 520px; margin: 6px 0; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; margin-top: 12px; }
+    .muted { color: #666; font-size: 14px; }
+    pre { background: #f6f6f6; padding: 12px; border-radius: 12px; overflow:auto; }
+    code { background:#f1f1f1; padding:2px 6px; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <h1>BitnestLoop dApp</h1>
+  <p class="muted">Connect → Infos lesen → Allowance/Balance check → Collect klicken.</p>
+
+  <div class="card">
+    <div class="row">
+      <button id="btnConnect">🦊 MetaMask verbinden</button>
+      <button id="btnRefresh">🔄 Refresh Infos</button>
+    </div>
+    <div class="muted">Account: <span id="account">-</span></div>
+    <div class="muted">ChainId: <span id="chain">-</span></div>
+    <div class="muted">Contract: <code id="caddr">-</code></div>
+  </div>
+
+  <div class="card">
+    <h3>Contract Infos</h3>
+    <div class="muted">Owner: <code id="owner">-</code></div>
+    <div class="muted">Paused: <code id="paused">-</code></div>
+    <div class="muted">TREASURY: <code id="treasury">-</code></div>
+    <div class="muted">USDC: <code id="usdc">-</code></div>
+    <div class="muted">USDT: <code id="usdt">-</code></div>
+
+    <div class="row" style="margin-top:10px;">
+      <button id="btnPauseOn">⏸ Pause ON</button>
+      <button id="btnPauseOff">▶️ Pause OFF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Checks (damit Collect nicht blind scheitert)</h3>
+    <p class="muted">
+      “from”-Wallet muss dem Contract vorher <b>Approve</b> gegeben haben (Allowance) + genug Balance besitzen.
+      Hier kannst du beides lesen.
+    </p>
+    <input id="fromAddr" placeholder="from address (Wallet, von der eingezogen wird)" />
+    <div class="row">
+      <button id="btnCheckUSDC">🔎 Check USDC</button>
+      <button id="btnCheckUSDT">🔎 Check USDT</button>
+    </div>
+    <pre id="checkOut">-</pre>
+  </div>
+
+  <div class="card">
+    <h3>Collect</h3>
+    <div class="row">
+      <button id="btnCollectUSDCAll">💰 collectUSDCAll(from)</button>
+      <button id="btnCollectUSDTAll">💰 collectUSDTAll(from)</button>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <input id="amt" placeholder="amount (in token smallest units, z.B. 1000000 = 1.0 bei 6 decimals)" />
+    </div>
+    <div class="row">
+      <button id="btnCollectUSDC">collectUSDC(from, amount)</button>
+      <button id="btnCollectUSDT">collectUSDT(from, amount)</button>
+    </div>
+
+    <pre id="txOut">-</pre>
+  </div>
+
+  <!-- ethers v5 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const CONTRACT_ADDRESS = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+    document.getElementById("caddr").textContent = CONTRACT_ADDRESS;
+
+    // ABI (von dir)
+    const ABI = [
+      {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+      {"anonymous":false,"inputs":[
+        {"indexed":true,"internalType":"address","name":"token","type":"address"},
+        {"indexed":true,"internalType":"address","name":"from","type":"address"},
+        {"indexed":true,"internalType":"address","name":"to","type":"address"},
+        {"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}
+      ],"name":"Collected","type":"event"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],
+        "name":"collectUSDC","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"}],
+        "name":"collectUSDCAll","outputs":[{"internalType":"uint256","name":"collected","type":"uint256"}],
+        "stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],
+        "name":"collectUSDT","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"}],
+        "name":"collectUSDTAll","outputs":[{"internalType":"uint256","name":"collected","type":"uint256"}],
+        "stateMutability":"nonpayable","type":"function"},
+      {"anonymous":false,"inputs":[
+        {"indexed":true,"internalType":"address","name":"oldOwner","type":"address"},
+        {"indexed":true,"internalType":"address","name":"newOwner","type":"address"}
+      ],"name":"OwnershipTransferred","type":"event"},
+      {"anonymous":false,"inputs":[{"indexed":false,"internalType":"bool","name":"isPaused","type":"bool"}],
+        "name":"Paused","type":"event"},
+      {"inputs":[{"internalType":"bool","name":"p","type":"bool"}],
+        "name":"setPaused","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],
+        "name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"TREASURY","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"USDC","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"USDT","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"}
+    ];
+
+    // Minimal ERC20 ABI für Checks
+    const ERC20_ABI = [
+      {"constant":true,"inputs":[{"name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},
+      {"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"type":"function"},
+      {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"},
+      {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"type":"function"}
+    ];
+
+    let provider, signer, contract;
+
+    const $ = (id) => document.getElementById(id);
+    const txOut = (x) => $("txOut").textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2);
+    const checkOut = (x) => $("checkOut").textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2);
+
+    async function ensureConnected() {
+      if (!window.ethereum) throw new Error("MetaMask nicht gefunden.");
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+
+      const addr = await signer.getAddress();
+      $("account").textContent = addr;
+
+      const net = await provider.getNetwork();
+      $("chain").textContent = String(net.chainId);
+
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      return { addr, chainId: net.chainId };
+    }
+
+    async function refreshInfos() {
+      await ensureConnected();
+      const [owner, paused, treasury, usdc, usdt] = await Promise.all([
+        contract.owner(),
+        contract.paused(),
+        contract.TREASURY(),
+        contract.USDC(),
+        contract.USDT()
+      ]);
+      $("owner").textContent = owner;
+      $("paused").textContent = String(paused);
+      $("treasury").textContent = treasury;
+      $("usdc").textContent = usdc;
+      $("usdt").textContent = usdt;
+    }
+
+    async function tokenCheck(tokenAddr, from) {
+      await ensureConnected();
+      if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+
+      const token = new ethers.Contract(tokenAddr, ERC20_ABI, provider);
+      const [sym, dec, bal, alw] = await Promise.all([
+        token.symbol().catch(()=>"?"),
+        token.decimals().catch(()=>6),
+        token.balanceOf(from),
+        token.allowance(from, CONTRACT_ADDRESS)
+      ]);
+
+      // human readable
+      const balH = ethers.utils.formatUnits(bal, dec);
+      const alwH = ethers.utils.formatUnits(alw, dec);
+
+      return { token: tokenAddr, symbol: sym, decimals: Number(dec), balance: bal.toString(), balanceHuman: balH, allowance: alw.toString(), allowanceHuman: alwH };
+    }
+
+    // UI actions
+    $("btnConnect").onclick = async () => {
+      try { await ensureConnected(); await refreshInfos(); txOut("✅ Verbunden & Infos geladen."); }
+      catch (e) { txOut("❌ " + (e?.message || e)); }
+    };
+
+    $("btnRefresh").onclick = async () => {
+      try { await refreshInfos(); txOut("🔄 Infos aktualisiert."); }
+      catch (e) { txOut("❌ " + (e?.message || e)); }
+    };
+
+    $("btnPauseOn").onclick = async () => {
+      try {
+        await ensureConnected();
+        txOut("⏳ setPaused(true) …");
+        const tx = await contract.setPaused(true);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+        await refreshInfos();
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnPauseOff").onclick = async () => {
+      try {
+        await ensureConnected();
+        txOut("⏳ setPaused(false) …");
+        const tx = await contract.setPaused(false);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+        await refreshInfos();
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCheckUSDC").onclick = async () => {
+      try {
+        await refreshInfos(); // damit USDC Adresse im UI stimmt
+        const from = $("fromAddr").value.trim();
+        const res = await tokenCheck($("usdc").textContent, from);
+        checkOut(res);
+      } catch (e) { checkOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCheckUSDT").onclick = async () => {
+      try {
+        await refreshInfos();
+        const from = $("fromAddr").value.trim();
+        const res = await tokenCheck($("usdt").textContent, from);
+        checkOut(res);
+      } catch (e) { checkOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCollectUSDCAll").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        txOut("⏳ collectUSDCAll(from) … (MetaMask poppt auf)");
+        const tx = await contract.collectUSDCAll(from);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCollectUSDTAll").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        txOut("⏳ collectUSDTAll(from) … (MetaMask poppt auf)");
+        const tx = await contract.collectUSDTAll(from);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCollectUSDC").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        const amt = $("amt").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        if (!amt) throw new Error("Bitte amount eintragen (smallest units).");
+        txOut("⏳ collectUSDC(from, amount) …");
+        const tx = await contract.collectUSDC(from, amt);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCollectUSDT").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        const amt = $("amt").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        if (!amt) throw new Error("Bitte amount eintragen (smallest units).");
+        txOut("⏳ collectUSDT(from, amount) …");
+        const tx = await contract.collectUSDT(from, amt);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    // reload on account/chain change
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", () => location.reload());
+      window.ethereum.on("chainChanged", () => location.reload());
+    }
+  </script>
+</body>
+</html>
