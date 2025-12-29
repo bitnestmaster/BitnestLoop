@@ -1,0 +1,4 @@
+/contracts
+/frontend
+/scripts
+/docs
