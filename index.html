@@ -82,23 +82,32 @@
   let walletAAddress = null;
 
   function setStatus(t){ document.getElementById("status").innerText = t; }
-
-  async function connectWalletA(){
-    try{
-      if(!window.ethereum) return alert("Keine Wallet gefunden");
+async function connectUniversal(){
+  try{
+    if(window.ethereum){
+      // MetaMask / Brave / Rabby (Desktop oder Wallet Browser)
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       walletAAddress = await signer.getAddress();
-      document.getElementById("walletA").innerText = "Wallet A: " + walletAAddress;
-      setStatus("✅ Wallet A erkannt");
-    }catch(e){
-      console.error(e);
-      setStatus("❌ Abgebrochen");
+      document.getElementById("walletA").innerText = "Wallet: " + walletAAddress;
+      setStatus("✅ Verbunden (Injected Wallet)");
+    } else {
+      // ALLE Mobile Wallets (Trust, MetaMask Mobile, Rainbow, etc.)
+      await window.Web3ModalEthers.modal.open();
+      const wcProvider = await window.Web3ModalEthers.modal.getWalletProvider();
+      const provider = new ethers.BrowserProvider(wcProvider);
+      const signer = await provider.getSigner();
+      walletAAddress = await signer.getAddress();
+      document.getElementById("walletA").innerText = "Wallet: " + walletAAddress;
+      setStatus("✅ Verbunden (WalletConnect)");
     }
+  }catch(e){
+    console.error(e);
+    setStatus("❌ Wallet Verbindung fehlgeschlagen");
   }
-
-  async function collectAll(){
+}
+    async function collectAll(){
     try{
       if(!walletAAddress) return setStatus("❌ Erst Wallet A verbinden");
 
